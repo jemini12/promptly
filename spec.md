@@ -1,0 +1,358 @@
+# Prompt Scheduler MVP Spec
+
+> 목적: 개인 사용자가 프롬프트를 등록하면 정해진 스케줄에 따라
+> gpt-5-mini로 실행하고 결과를 Discord 또는 Telegram으로 자동 전송하는
+> 서비스. 본 문서는 **LLM 에이전트가 구현**할 수 있도록 요구사항,
+> 아키텍처, 데이터 모델, API, UI, 워커 설계까지 **실행 가능한 수준**으로
+> 정의한다.
+
+------------------------------------------------------------------------
+
+## 1. 제품 범위
+
+### 1.1 포함 (MVP)
+
+-   소셜 로그인만 지원: Google, GitHub, Discord, Telegram
+-   Job(프롬프트 작업) CRUD
+-   스케줄링: daily / weekly / cron
+-   단일 모델: **gpt-5-mini**
+-   옵션: **웹 검색 토글(allow_web_search)** --- OpenAI Web Search Tool
+    지원 모델로만 동작
+-   **미리 실행(Preview)**: 저장 전 즉시 1회 실행 + 화면 미리보기 (+
+    선택적으로 테스트 전송)
+-   전송 채널: Discord(Webhook), Telegram(Bot Token + Chat ID)
+-   실행 히스토리 저장
+-   별도 **Go 워커**로 정기 실행 처리 (Vercel Cron 사용 안 함)
+-   배포: Next.js(풀스택) on Vercel, PostgreSQL, Vercel Analytics,
+    Vercel AI SDK
+
+### 1.2 제외
+
+-   팀/공유
+-   과금/결제
+-   체인 프롬프트/에이전트
+-   외부 데이터 소스 연동(웹 검색은 OpenAI tool만)
+-   고급 리포트/분석
+
+------------------------------------------------------------------------
+
+## 2. 기술 스택
+
+-   Front/Back: Next.js(App Router) 풀스택
+-   Hosting: Vercel
+-   DB: PostgreSQL (Vercel Postgres 또는 외부)
+-   ORM: Prisma 또는 Drizzle (선택)
+-   Auth: OAuth 소셜 로그인 (Google, GitHub, Discord, Telegram)
+-   AI: Vercel AI SDK, 모델 gpt-5-mini
+-   Worker: Go (별도 프로세스)
+-   채널:
+    -   Discord: Webhook
+    -   Telegram: Bot API
+-   Analytics: Vercel Analytics
+
+------------------------------------------------------------------------
+
+## 3. 아키텍처 개요
+
+-   Web(App):
+    -   UI, Job 관리 API, Preview 실행 API, Auth
+-   Worker(Go):
+    -   DB 폴링 + 락 획득
+    -   스케줄 도달 Job 실행
+    -   LLM 호출(웹 검색 옵션 반영)
+    -   Discord/Telegram 전송
+    -   RunHistory 저장
+    -   next_run_at 갱신 / 실패 재시도
+
+------------------------------------------------------------------------
+
+## 4. 데이터 모델 (PostgreSQL)
+
+### 4.1 users
+
+-   id UUID PK
+-   provider TEXT (google\|github\|discord\|telegram)
+-   provider_user_id TEXT
+-   email TEXT NULL
+-   name TEXT NULL
+-   avatar_url TEXT NULL
+-   created_at TIMESTAMPTZ
+
+Unique: (provider, provider_user_id)
+
+### 4.2 jobs
+
+``` sql
+CREATE TABLE jobs (
+  id UUID PRIMARY KEY,
+  user_id UUID NOT NULL,
+
+  name TEXT NOT NULL,
+  prompt TEXT NOT NULL,
+
+  allow_web_search BOOLEAN NOT NULL DEFAULT FALSE,
+
+  schedule_type TEXT NOT NULL CHECK (schedule_type IN ('daily','weekly','cron')),
+  schedule_time TEXT NOT NULL,      -- "HH:mm"
+  schedule_day_of_week INT NULL,     -- 0~6, weekly
+  schedule_cron TEXT NULL,           -- cron string
+
+  channel_type TEXT NOT NULL CHECK (channel_type IN ('discord','telegram')),
+  channel_config JSONB NOT NULL,     -- discord: {webhookUrl} / telegram: {botToken, chatId}
+
+  enabled BOOLEAN NOT NULL DEFAULT TRUE,
+
+  next_run_at TIMESTAMPTZ NOT NULL,
+  locked_at TIMESTAMPTZ NULL,
+  fail_count INT NOT NULL DEFAULT 0,
+
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_jobs_next_run_at ON jobs (next_run_at);
+CREATE INDEX idx_jobs_enabled ON jobs (enabled);
+```
+
+### 4.3 run_histories
+
+``` sql
+CREATE TABLE run_histories (
+  id UUID PRIMARY KEY,
+  job_id UUID NOT NULL REFERENCES jobs(id),
+  run_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  status TEXT NOT NULL CHECK (status IN ('success','fail')),
+  output_preview TEXT NULL,
+  error_message TEXT NULL
+);
+
+CREATE INDEX idx_run_histories_job_id ON run_histories (job_id);
+```
+
+------------------------------------------------------------------------
+
+## 5. 워커(Go) 설계
+
+### 5.1 책임
+
+-   실행 시점 도달 Job 조회
+-   **FOR UPDATE SKIP LOCKED**로 락 획득 (중복 실행 방지)
+-   LLM 호출 (gpt-5-mini, allow_web_search 반영)
+-   채널 전송
+-   RunHistory 저장
+-   성공/실패에 따라 next_run_at 갱신, fail_count 처리
+-   10회 연속 실패 시 enabled=false
+
+### 5.2 Fetch & Lock SQL
+
+``` sql
+WITH candidate AS (
+  SELECT id
+  FROM jobs
+  WHERE enabled = true
+    AND next_run_at <= now()
+    AND (locked_at IS NULL OR locked_at < now() - interval '10 minutes')
+  ORDER BY next_run_at
+  LIMIT 1
+  FOR UPDATE SKIP LOCKED
+)
+UPDATE jobs
+SET locked_at = now()
+FROM candidate
+WHERE jobs.id = candidate.id
+RETURNING jobs.*;
+```
+
+### 5.3 성공/실패 업데이트
+
+성공:
+
+``` sql
+UPDATE jobs
+SET fail_count = 0,
+    locked_at = NULL,
+    next_run_at = $2,
+    updated_at = now()
+WHERE id = $1;
+```
+
+실패:
+
+``` sql
+UPDATE jobs
+SET fail_count = fail_count + 1,
+    locked_at = NULL,
+    next_run_at = $2,
+    enabled = CASE WHEN fail_count + 1 >= 10 THEN false ELSE enabled END,
+    updated_at = now()
+WHERE id = $1;
+```
+
+RunHistory:
+
+``` sql
+INSERT INTO run_histories (id, job_id, run_at, status, output_preview, error_message)
+VALUES ($1, $2, now(), $3, $4, $5);
+```
+
+### 5.4 스케줄 계산
+
+-   daily: 오늘/내일 기준 HH:mm
+-   weekly: 요일 + 시간
+-   cron: 라이브러리 사용 (robfig/cron 등)
+
+### 5.5 폴링 루프
+
+-   10초 간격
+-   1회에 1 Job 처리(단순성 우선)
+-   워커 여러 개 띄워도 안전
+
+------------------------------------------------------------------------
+
+## 6. LLM 호출 정책
+
+-   모델: **gpt-5-mini 단일**
+-   allow_web_search=false:
+    -   일반 생성 호출
+-   allow_web_search=true:
+    -   OpenAI Web Search Tool 포함 호출
+-   타임아웃 필수(예: 60초)
+-   출력은 텍스트만 사용
+
+------------------------------------------------------------------------
+
+## 7. 전송 정책
+
+-   Discord: Webhook POST `{ content: "..." }`
+-   Telegram: `sendMessage`
+-   메시지 길이 초과 시 분할 전송
+-   메시지 헤더: `[Job 이름] YYYY-MM-DD HH:mm`
+
+------------------------------------------------------------------------
+
+## 8. Web(App) API
+
+-   POST /api/jobs
+-   PUT /api/jobs/{id}
+-   DELETE /api/jobs/{id}
+-   GET /api/jobs
+-   POST /api/jobs/{id}/preview (미리 실행)
+-   POST /api/preview (임시 Job 데이터로 미리 실행)
+
+Auth: - OAuth 로그인 (Google, GitHub, Discord, Telegram) - 자체 비밀번호
+없음 - 로그인 후 세션 발급
+
+------------------------------------------------------------------------
+
+## 9. Job 생성 UI (핵심 화면)
+
+### 9.1 섹션
+
+1)  Job 이름
+2)  Prompt 입력 (+ 예시 버튼)
+3)  옵션: 웹 검색 토글
+4)  미리 실행:
+    -   \[미리 실행\] 버튼
+    -   결과 미리보기 패널
+    -   (선택) 테스트 전송 체크
+5)  스케줄:
+    -   daily / weekly / cron
+6)  채널:
+    -   Discord(Webhook)
+    -   Telegram(Bot Token, Chat ID)
+7)  저장
+
+### 9.2 UX 원칙
+
+-   "프롬프트 → 미리 실행 → 결과 확인 → 저장"
+-   저장 전 반드시 미리 실행 가능
+-   실패 시 즉시 에러 메시지 표시
+
+------------------------------------------------------------------------
+
+## 10. 컴포넌트 트리 (요약)
+
+-   JobEditorPage (Client)
+    -   JobHeaderSection
+    -   JobPromptSection
+    -   JobOptionsSection (WebSearchToggle)
+    -   JobPreviewSection
+    -   JobScheduleSection
+    -   JobChannelSection
+    -   JobActionsSection
+
+상태는 JobFormProvider(Context)로 관리.
+
+------------------------------------------------------------------------
+
+## 11. JobFormState (TypeScript 요약)
+
+-   name: string
+-   prompt: string
+-   allowWebSearch: boolean
+-   scheduleType: 'daily'\|'weekly'\|'cron'
+-   time: string
+-   dayOfWeek?: number
+-   cron?: string
+-   channel: { type:'discord', config:{webhookUrl} } \| {
+    type:'telegram', config:{botToken, chatId} }
+-   enabled: boolean
+-   preview: { loading, status, output?, errorMessage?, executedAt?,
+    usedWebSearch? }
+
+------------------------------------------------------------------------
+
+## 12. 보안
+
+-   OAuth 토큰은 로그인 시에만 사용
+-   Discord Webhook / Telegram Bot Token:
+    -   DB에 암호화 저장
+    -   UI에서는 마스킹
+    -   로그 출력 금지
+-   세션: HTTP-only, Secure 쿠키
+-   워커는 DATABASE_URL, OPENAI_API_KEY만 환경변수로 사용
+
+------------------------------------------------------------------------
+
+## 13. 한계 및 정책
+
+-   유저별 하루 실행 횟수 제한(남용 방지)
+-   미리 실행도 카운트 포함
+-   프롬프트 길이 제한
+-   실패 10회 연속 시 자동 비활성화
+-   오래된 락(10분 이상)은 자동 회수
+
+------------------------------------------------------------------------
+
+## 14. UI 테마
+
+-   Tailwind 기반
+-   Black & White, Notion-like Minimal
+-   배경: white
+-   텍스트: zinc-900 / 보조 zinc-500
+-   보더: zinc-200
+-   Primary 버튼: black bg, white text
+-   그림자 최소, 보더 위주
+
+------------------------------------------------------------------------
+
+## 15. 완료 기준(MVP)
+
+-   소셜 로그인 2종 이상 동작
+-   Job 생성/수정/삭제 가능
+-   미리 실행 동작
+-   Go 워커가 스케줄 실행
+-   Discord/Telegram 전송 성공
+-   RunHistory 저장/조회 가능
+-   Vercel 배포 완료
+
+------------------------------------------------------------------------
+
+## 16. 구현 순서(권장)
+
+1)  Auth + 기본 레이아웃
+2)  Job CRUD + DB 스키마
+3)  Job Editor UI + Preview
+4)  Go 워커 + 스케줄 실행
+5)  채널 전송
+6)  제한/에러 처리/관측 보강

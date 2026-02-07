@@ -1,0 +1,105 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AuthProvider {
+  google
+  github
+  discord
+  telegram
+}
+
+enum ScheduleType {
+  daily
+  weekly
+  cron
+}
+
+enum ChannelType {
+  discord
+  telegram
+}
+
+enum RunStatus {
+  success
+  fail
+}
+
+model User {
+  id             String       @id @default(uuid()) @db.Uuid
+  provider       AuthProvider
+  providerUserId String       @map("provider_user_id")
+  email          String?
+  name           String?
+  avatarUrl      String?      @map("avatar_url")
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  jobs           Job[]
+  previewEvents  PreviewEvent[]
+
+  @@unique([provider, providerUserId])
+  @@map("users")
+}
+
+model Job {
+  id                String       @id @default(uuid()) @db.Uuid
+  userId            String       @map("user_id") @db.Uuid
+  name              String
+  prompt            String
+  allowWebSearch    Boolean      @default(false) @map("allow_web_search")
+  scheduleType      ScheduleType @map("schedule_type")
+  scheduleTime      String       @map("schedule_time")
+  scheduleDayOfWeek Int?         @map("schedule_day_of_week")
+  scheduleCron      String?      @map("schedule_cron")
+  channelType       ChannelType  @map("channel_type")
+  channelConfig     Json         @map("channel_config")
+  enabled           Boolean      @default(true)
+  nextRunAt         DateTime     @map("next_run_at") @db.Timestamptz(6)
+  lockedAt          DateTime?    @map("locked_at") @db.Timestamptz(6)
+  failCount         Int          @default(0) @map("fail_count")
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  runHistories RunHistory[]
+
+  @@index([nextRunAt], map: "idx_jobs_next_run_at")
+  @@index([enabled], map: "idx_jobs_enabled")
+  @@map("jobs")
+}
+
+model RunHistory {
+  id            String   @id @default(uuid()) @db.Uuid
+  jobId         String   @map("job_id") @db.Uuid
+  runAt         DateTime @default(now()) @map("run_at") @db.Timestamptz(6)
+  status        RunStatus
+  outputPreview String?  @map("output_preview")
+  errorMessage  String?  @map("error_message")
+  isPreview     Boolean  @default(false) @map("is_preview")
+
+  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId], map: "idx_run_histories_job_id")
+  @@map("run_histories")
+}
+
+model PreviewEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt], map: "idx_preview_events_user_id_created_at")
+  @@map("preview_events")
+}

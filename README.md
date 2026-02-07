@@ -91,6 +91,11 @@ Worker behavior:
 - writes `run_histories`
 - resets fail count on success; disables job after 10 consecutive failures
 
+## Response Policy
+
+- LLM calls use a service-level system prompt for goal-centric output.
+- Responses are generated as non-chat final deliverables (plain text, no conversational filler).
+
 ## Main Routes
 
 - `/` dashboard

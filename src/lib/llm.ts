@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { SERVICE_SYSTEM_PROMPT } from "@/lib/system-prompt";
 
 export async function runPrompt(prompt: string, allowWebSearch: boolean) {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -14,6 +15,7 @@ export async function runPrompt(prompt: string, allowWebSearch: boolean) {
     const response = await openai.responses.create(
       {
         model: "gpt-5-mini",
+        instructions: SERVICE_SYSTEM_PROMPT,
         input: prompt,
         tools: allowWebSearch ? [{ type: "web_search_preview" }] : undefined,
       },

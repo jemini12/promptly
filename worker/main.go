@@ -42,6 +42,17 @@ RETURNING jobs.id, jobs.name, jobs.prompt, jobs.allow_web_search,
           jobs.schedule_type, jobs.schedule_time, jobs.schedule_day_of_week,
           jobs.schedule_cron, jobs.channel_type, jobs.channel_config, jobs.fail_count;`
 
+const serviceSystemPrompt = `You are Promptly, an automated scheduled execution agent.
+
+Follow these rules for every response:
+1) This is not a chat. Return the final deliverable directly.
+2) Be goal-centric and complete the requested task end-to-end in one response.
+3) Do not ask follow-up questions unless the prompt explicitly asks you to ask.
+4) Do not include conversational fillers, roleplay, or meta commentary.
+5) Use clear structure and concise wording.
+6) If the request is impossible or unsafe, state the limitation briefly and provide the best valid alternative output.
+7) Output plain text only.`
+
 type Job struct {
 	ID                string
 	Name              string
@@ -157,8 +168,9 @@ func runPrompt(ctx context.Context, apiKey, prompt string, allowWebSearch bool) 
 		Type string `json:"type"`
 	}
 	payload := map[string]any{
-		"model": "gpt-5-mini",
-		"input": prompt,
+		"model":        "gpt-5-mini",
+		"instructions": serviceSystemPrompt,
+		"input":        prompt,
 	}
 	if allowWebSearch {
 		payload["tools"] = []tool{{Type: "web_search_preview"}}

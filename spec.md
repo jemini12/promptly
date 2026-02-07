@@ -12,7 +12,7 @@
 
 ### 1.1 포함 (MVP)
 
--   소셜 로그인만 지원: Google, GitHub, Discord, Telegram
+-   소셜 로그인만 지원: Google, GitHub, Discord
 -   Job(프롬프트 작업) CRUD
 -   스케줄링: daily / weekly / cron
 -   단일 모델: **gpt-5-mini**
@@ -42,7 +42,7 @@
 -   Hosting: Vercel
 -   DB: PostgreSQL (Vercel Postgres 또는 외부)
 -   ORM: Prisma 또는 Drizzle (선택)
--   Auth: OAuth 소셜 로그인 (Google, GitHub, Discord, Telegram)
+-   Auth: OAuth 소셜 로그인 (Google, GitHub, Discord)
 -   AI: Vercel AI SDK, 모델 gpt-5-mini
 -   Worker: Go (별도 프로세스)
 -   채널:
@@ -239,7 +239,7 @@ VALUES ($1, $2, now(), $3, $4, $5);
 -   POST /api/jobs/{id}/preview (미리 실행)
 -   POST /api/preview (임시 Job 데이터로 미리 실행)
 
-Auth: - OAuth 로그인 (Google, GitHub, Discord, Telegram) - 자체 비밀번호
+Auth: - OAuth 로그인 (Google, GitHub, Discord) - 자체 비밀번호
 없음 - 로그인 후 세션 발급
 
 ------------------------------------------------------------------------
@@ -356,3 +356,34 @@ Auth: - OAuth 로그인 (Google, GitHub, Discord, Telegram) - 자체 비밀번�
 4)  Go 워커 + 스케줄 실행
 5)  채널 전송
 6)  제한/에러 처리/관측 보강
+
+------------------------------------------------------------------------
+
+## 17. 구현 현황 반영 (2026-02-08)
+
+### 17.1 완료된 항목
+
+-   Auth + 기본 레이아웃: 완료
+-   Job CRUD + DB 스키마: 완료
+-   Job Editor UI + Preview: 완료
+    -   weekly 요일 셀렉트 표시
+    -   cron 표현식 자연어 설명 표시
+    -   Preview 테스트 전송(채널) 토글 반영
+-   Go 워커 + 스케줄 실행: 완료
+-   채널 전송(Discord/Telegram): 완료
+-   제한/에러 처리 보강: 완료
+    -   일일 실행 제한(Preview 포함)
+    -   10회 연속 실패 시 자동 비활성화
+    -   오래된 락 회수(10분)
+
+### 17.2 동작 정책 반영
+
+-   LLM 호출에 서비스 시스템 프롬프트 적용:
+    -   비대화형(non-chat) 결과 지향 출력
+    -   목표 중심의 완결된 응답 우선
+
+### 17.3 현재 스펙 대비 차이점(의도된 변경)
+
+-   소셜 로그인에서 Telegram 로그인은 제거됨(요청 반영).
+-   Telegram은 전송 채널로만 유지됨.
+-   배포 경로는 Vercel 외에 Docker Compose 로컬/VM 경로도 추가됨.

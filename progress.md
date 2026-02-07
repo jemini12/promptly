@@ -30,6 +30,9 @@
   - Discord webhook send
   - Telegram `sendMessage`
   - message chunking
+- Service response policy:
+  - goal-centric system prompt applied
+  - non-chat, direct final-output style enforced for preview and worker runs
 - Security and policy:
   - channel credential encryption/masking
   - daily run limit checks
@@ -51,12 +54,14 @@
 - Worker compiles (`go build ./...` in `worker/`)
 - Local DB container starts and migrations apply
 - Google OAuth callback works once DB is running
+- Preview works for authenticated users, including optional test-send to selected channel
 
 ## Remaining to Call Production-Ready
 
 - End-to-end production smoke test (scheduled run -> channel delivery -> history verification)
 - Deployment hardening (real secrets, domain/TLS, OAuth production callback setup)
 - Optional: additional tests (API integration/e2e) for regression safety
+- Production runbook for backup/restore and on-call troubleshooting
 
 ## Notes
 

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
@@ -60,9 +59,6 @@ export default async function EditJobPage({ params }: Params) {
     <main className="page-shell">
       <SiteNav signedIn />
       <section className="content-shell max-w-3xl pt-6">
-        <Link href="/dashboard" className="back-link">
-          {"<- Back to Dashboard"}
-        </Link>
         <JobEditorPage
           jobId={job.id}
           initialState={{

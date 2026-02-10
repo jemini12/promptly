@@ -393,3 +393,5 @@ Auth: - OAuth 로그인 (Google, GitHub, Discord) - 자체 비밀번호
     -   Sign Out: 별도 `/signout` 라우트를 통해 안정적인 로그아웃 처리.
     -   Dashboard: 헤더에 'Create Job' 버튼 추가.
     -   Job Editor: 'Back' 링크 제거, 'Use example'/'Clear' 편의 버튼 추가.
+    -   Landing/Help CTA를 `text-sm`/`text-xs` 중심의 작고 깔끔한 버튼으로 통일.
+    -   (2026-02-11) Edit Job 페이지 상단 Back 링크 제거로 Job Editor 진입 흐름 단순화.

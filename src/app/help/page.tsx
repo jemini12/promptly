@@ -22,10 +22,16 @@ export default async function HelpPage() {
         <p className="mt-2 text-sm text-zinc-600">Setup steps, channel requirements, and troubleshooting for reliable scheduled runs.</p>
         {!signedIn ? (
           <div className="mt-4 flex flex-wrap gap-2">
-            <Link href="/signin?callbackUrl=/jobs/new" className="btn btn-primary btn-sm">
+            <Link
+              href="/signin?callbackUrl=/jobs/new"
+              className="inline-flex items-center justify-center rounded-md border border-transparent bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 transition-colors"
+            >
               Create Job
             </Link>
-            <Link href="/signin?callbackUrl=/dashboard" className="btn btn-secondary btn-sm">
+            <Link
+              href="/signin?callbackUrl=/dashboard"
+              className="inline-flex items-center justify-center rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-900 hover:bg-zinc-100 transition-colors"
+            >
               View Dashboard
             </Link>
           </div>

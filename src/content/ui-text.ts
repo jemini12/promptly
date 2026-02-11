@@ -11,7 +11,7 @@ export const uiText = {
   landing: {
     title: "Automate recurring prompts with reliable scheduled runs.",
     description:
-      "Promptly runs your prompt on schedule, lets you validate output before saving, and delivers final messages to Discord or Telegram.",
+      "Promptly runs your prompt on schedule, lets you validate output before saving, and delivers final messages to Discord, Telegram, or a custom webhook.",
     cta: {
       primarySignedIn: "Create Job",
       primarySignedOut: "Sign in to Create",
@@ -21,7 +21,7 @@ export const uiText = {
     highlights: [
       "Preview before saving changes",
       "Daily, weekly, or cron schedule",
-      "Discord and Telegram delivery",
+      "Discord, Telegram, or webhook delivery",
     ],
     steps: [
       {
@@ -34,7 +34,7 @@ export const uiText = {
       },
       {
         title: "3. Deliver Output",
-        description: "Send final responses to your chosen channel automatically.",
+        description: "Send final responses to Discord, Telegram, or a custom webhook automatically.",
       },
     ],
   },
@@ -71,7 +71,24 @@ export const uiText = {
     },
     channelSetup: {
       title: "Channel setup",
-      items: ["Discord: provide a webhook URL.", "Telegram: provide a bot token and chat ID."],
+      items: [
+        "Discord: provide a webhook URL.",
+        "Telegram: provide a bot token and chat ID.",
+        "Custom webhook: provide a URL, HTTP method, and optional headers/payload JSON.",
+      ],
+    },
+    customWebhook: {
+      title: "Custom webhook",
+      description:
+        "Use Custom Webhook to integrate with any endpoint. Headers and payload are stored as JSON strings and must be valid JSON.",
+      examples: {
+        headers: '{"Authorization":"Bearer <token>","X-Job":"promptly"}',
+        payload: '{"content":"Hello from Promptly"}',
+      },
+      notes: [
+        "If your endpoint expects JSON, include a Content-Type header (often `application/json`).",
+        "Use Preview with test-send enabled to validate delivery before saving.",
+      ],
     },
     preview: {
       title: "Preview and test-send",
@@ -81,7 +98,7 @@ export const uiText = {
       title: "Common issues",
       items: [
         "Unauthorized preview: sign in again and use the same host (`localhost`).",
-        "Delivery error: verify the Discord webhook or Telegram bot/chat configuration.",
+        "Delivery error: verify Discord/Telegram/webhook configuration and ensure webhook headers/payload JSON is valid.",
         "No scheduled sends: check job is enabled and worker process is running.",
       ],
     },

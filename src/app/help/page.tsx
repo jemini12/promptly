@@ -60,6 +60,30 @@ export default async function HelpPage() {
           </section>
 
           <section className="surface-card">
+            <h2 className="text-sm font-semibold text-zinc-900">{uiText.help.customWebhook.title}</h2>
+            <p className="mt-2 text-sm text-zinc-700">{uiText.help.customWebhook.description}</p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div>
+                <p className="text-xs font-medium text-zinc-900">Headers JSON</p>
+                <pre className="mt-2 overflow-auto whitespace-pre-wrap rounded-xl border border-zinc-200 bg-zinc-50 p-3 font-mono text-xs text-zinc-700">
+                  {uiText.help.customWebhook.examples.headers}
+                </pre>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-zinc-900">Payload JSON</p>
+                <pre className="mt-2 overflow-auto whitespace-pre-wrap rounded-xl border border-zinc-200 bg-zinc-50 p-3 font-mono text-xs text-zinc-700">
+                  {uiText.help.customWebhook.examples.payload}
+                </pre>
+              </div>
+            </div>
+            <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-zinc-700">
+              {uiText.help.customWebhook.notes.map((note) => (
+                <li key={note}>{note}</li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="surface-card">
             <h2 className="text-sm font-semibold text-zinc-900">{uiText.help.preview.title}</h2>
             <p className="mt-2 text-sm text-zinc-700">
               {uiText.help.preview.description}

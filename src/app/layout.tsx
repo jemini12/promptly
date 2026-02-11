@@ -17,9 +17,9 @@ export const metadata: Metadata = {
     default: "Promptly",
     template: "%s | Promptly",
   },
-  description: "Schedule AI prompts, preview output, and deliver automated results to Discord or Telegram.",
+  description: "Schedule AI prompts, preview output, and deliver automated results to Discord, Telegram, or a custom webhook.",
   applicationName: "Promptly",
-  keywords: ["AI automation", "prompt scheduler", "Discord", "Telegram", "workflow"],
+  keywords: ["AI automation", "prompt scheduler", "Discord", "Telegram", "webhook", "workflow"],
   openGraph: {
     title: "Promptly",
     description: "Run AI prompts on your schedule and deliver results automatically.",

@@ -63,6 +63,9 @@
   - Refactored landing/help/dashboard CTAs to `LinkButton` and interactive actions (signin/job editor) to `Button`.
   - Enforced equal size/typography between link/button controls for the same variant and size.
   - Added drift guard: `scripts/check-ui-controls.sh` and `npm run check:ui-controls`.
+- **Deployment Utilities (2026-02-11)**:
+  - Added `deploy/` scripts for VM bootstrap (Ubuntu/Debian), `.env` generation, docker compose deploy, and optional systemd startup.
+  - Docker Compose `NEXTAUTH_URL` is now configurable via env var (defaults to `http://localhost:3000`).
 
 ## In Place and Verified
 

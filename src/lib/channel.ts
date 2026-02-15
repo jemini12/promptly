@@ -9,6 +9,16 @@ type SendChannelInput =
       payload: string;
     };
 
+export class ChannelRequestError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ChannelRequestError";
+    this.status = status;
+  }
+}
+
 const DISCORD_MAX = 1900;
 const TELEGRAM_MAX = 4000;
 
@@ -36,7 +46,7 @@ export async function sendChannelMessage(channel: SendChannelInput, title: strin
         body: JSON.stringify({ content: chunk }),
       });
       if (!res.ok) {
-        throw new Error(`Discord webhook failed: ${res.status}`);
+        throw new ChannelRequestError(`Discord webhook failed: ${res.status}`, res.status);
       }
     }
     return;
@@ -54,7 +64,7 @@ export async function sendChannelMessage(channel: SendChannelInput, title: strin
       body: channel.method === "GET" ? undefined : JSON.stringify(payload),
     });
     if (!res.ok) {
-      throw new Error(`Webhook failed: ${res.status}`);
+      throw new ChannelRequestError(`Webhook failed: ${res.status}`, res.status);
     }
     return;
   }
@@ -67,7 +77,7 @@ export async function sendChannelMessage(channel: SendChannelInput, title: strin
       body: JSON.stringify({ chat_id: channel.chatId, text: chunk }),
     });
     if (!res.ok) {
-      throw new Error(`Telegram sendMessage failed: ${res.status}`);
+      throw new ChannelRequestError(`Telegram sendMessage failed: ${res.status}`, res.status);
     }
   }
 }

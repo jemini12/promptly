@@ -1,4 +1,4 @@
-# Promptly MVP
+# Promptloop
 
 Prompt scheduler that executes `gpt-5-mini` on daily/weekly/cron and sends output to Discord or Telegram.
 
@@ -8,7 +8,7 @@ Prompt scheduler that executes `gpt-5-mini` on daily/weekly/cron and sends outpu
 - PostgreSQL + Prisma
 - NextAuth social auth (Google/GitHub/Discord)
 - OpenAI Responses API (`gpt-5-mini`, optional `web_search_preview` tool)
-- Go worker for scheduled execution
+- Vercel Functions (Fluid Compute) + Vercel Cron Jobs for scheduled execution
 
 ## Environment Variables
 
@@ -40,56 +40,26 @@ Apply DB schema:
 npx prisma migrate deploy
 ```
 
-## Docker Compose Run
-
-1. Copy env file and fill real secrets:
-
-```bash
-cp .env.example .env
-```
-
-2. Start full stack:
-
-```bash
-docker compose up -d --build
-```
-
-3. Check logs:
-
-```bash
-docker compose logs -f web worker
-```
-
-4. Stop stack:
-
-```bash
-docker compose down
-```
-
-Notes:
-
-- `docker-compose.yml` overrides `DATABASE_URL` inside containers to use `db` host.
-- Web container runs `prisma migrate deploy` on start.
-- App is available at `http://localhost:3000`.
-
 ## Worker
 
-Worker source is in `worker/main.go`.
+### Vercel worker (Fluid + Cron)
 
-Run worker:
+- Route: `GET /api/cron/run-jobs` (implemented at `src/app/api/cron/run-jobs/route.ts`)
+- Cron config: `vercel.json` runs it every minute
+- Security: set `CRON_SECRET` in Vercel env; Vercel will send `Authorization: Bearer $CRON_SECRET`
+
+Tuning env vars:
+
+- `WORKER_MAX_JOBS_PER_RUN` (default: 25)
+- `WORKER_TIME_BUDGET_MS` (default: 250000)
+- `WORKER_DELIVERY_MAX_RETRIES` (default: 3)
+- `WORKER_LOCK_STALE_MINUTES` (default: 10)
+
+Local test:
 
 ```bash
-go run ./worker
+curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/run-jobs
 ```
-
-Worker behavior:
-
-- polls every 10 seconds
-- acquires one due job via `FOR UPDATE SKIP LOCKED`
-- executes LLM request with optional web search
-- sends to Discord/Telegram with chunking
-- writes `run_histories`
-- resets fail count on success; disables job after 10 consecutive failures
 
 ## Response Policy
 

@@ -68,6 +68,12 @@ Deliverables:
   - Chat channels: formatting rules + truncation policy + link policy.
 - Artifact expansion: store citations, tool usage, and per-run usage/cost estimates.
 
+Implemented (initial slice):
+- Persist artifacts on each run: `llm_model`, `llm_usage`, `llm_tool_calls`, `used_web_search`, `citations`.
+- Webhook default payload expanded to a stable JSON shape: `{ title, body, content, usedWebSearch, citations, meta }`.
+- Channel deliveries append a short Sources section when citations exist.
+- Job History UI surfaces web-search usage + Sources.
+
 Success criteria:
 - Web-search-enabled jobs show sources; failure modes are explainable.
 - Downstream webhook consumers receive stable shapes.

@@ -68,6 +68,25 @@
   - Prisma enum type names mapped to DB enum types via `@@map(...)` to avoid type mismatch errors.
   - After env/schema changes, regenerating Prisma Client and restarting dev server unblocks NextAuth callbacks.
 
+- **Worker Reliability Baseline (Phase 0, 2026-02-16)**:
+  - Scheduled run idempotency (dedupe by job + scheduled time) to prevent duplicate sends.
+  - Delivery attempt receipts persisted (`delivery_attempts`) for retry observability.
+  - Scheduled runs enforce the same daily run limit behavior as previews.
+  - Runner correlation id stored on `run_histories.runner_id`.
+
+- **Prompt Lifecycle v1 (Phase 1, 2026-02-16)**:
+  - Prompt templates + Variables (JSON) with `{{var}}` substitution and built-ins (date/time/now_iso/timezone).
+  - Immutable `prompt_versions` table and `jobs.published_prompt_version_id` publish pointer.
+  - Scheduled runs and previews bind to a specific PromptVersion (`run_histories.prompt_version_id`).
+  - Preview UI supports “run as scheduled” (timestamp/timezone).
+
+- **Artifacts + Output Contracts v1 (Phase 2, 2026-02-17)**:
+  - Persist run artifacts on `run_histories`: `llm_model`, `llm_usage`, `llm_tool_calls`, `used_web_search`, `citations`.
+  - Web search citations are extracted from Responses API annotations (`url_citation`).
+  - Channel delivery appends up to 5 Sources when citations exist.
+  - Webhook default payload is a stable JSON object with `title`, `body`, `content`, `usedWebSearch`, `citations`, and `meta`.
+  - Job History UI shows web-search runs and Sources links.
+
 ## In Place and Verified
 
 - Next.js production build passes (`npm run build`)

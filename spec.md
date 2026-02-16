@@ -88,7 +88,8 @@ CREATE TABLE jobs (
   user_id UUID NOT NULL,
 
   name TEXT NOT NULL,
-  prompt TEXT NOT NULL,
+  prompt TEXT NOT NULL,                   -- 템플릿 문자열(하위 호환)
+  published_prompt_version_id UUID NULL,  -- 현재 발행된 PromptVersion
 
   allow_web_search BOOLEAN NOT NULL DEFAULT FALSE,
 
@@ -97,8 +98,8 @@ CREATE TABLE jobs (
   schedule_day_of_week INT NULL,     -- 0~6, weekly
   schedule_cron TEXT NULL,           -- cron string
 
-  channel_type TEXT NOT NULL CHECK (channel_type IN ('discord','telegram')),
-  channel_config JSONB NOT NULL,     -- discord: {webhookUrl} / telegram: {botToken, chatId}
+  channel_type TEXT NOT NULL CHECK (channel_type IN ('discord','telegram','webhook')),
+  channel_config JSONB NOT NULL,     -- discord/telegram/webhook 설정
 
   enabled BOOLEAN NOT NULL DEFAULT TRUE,
 
@@ -120,9 +121,25 @@ CREATE INDEX idx_jobs_enabled ON jobs (enabled);
 CREATE TABLE run_histories (
   id UUID PRIMARY KEY,
   job_id UUID NOT NULL REFERENCES jobs(id),
+  prompt_version_id UUID NULL REFERENCES prompt_versions(id),
+  scheduled_for TIMESTAMPTZ NULL,          -- 크론/스케줄 인스턴스(멱등 키)
   run_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  status TEXT NOT NULL CHECK (status IN ('success','fail')),
+  status TEXT NOT NULL CHECK (status IN ('running','success','fail')),
+  output_text TEXT NULL,                   -- 재전송/재시도에 사용
   output_preview TEXT NULL,
+  is_preview BOOLEAN NOT NULL DEFAULT FALSE,
+  runner_id TEXT NULL,                     -- 크론 호출 상관관계 id
+
+  delivered_at TIMESTAMPTZ NULL,
+  delivery_attempts INT NOT NULL DEFAULT 0,
+  delivery_last_error TEXT NULL,
+
+  llm_model TEXT NULL,
+  llm_usage JSONB NULL,
+  llm_tool_calls JSONB NULL,
+  used_web_search BOOLEAN NOT NULL DEFAULT FALSE,
+  citations JSONB NULL,
+
   error_message TEXT NULL
 );
 
@@ -131,12 +148,13 @@ CREATE INDEX idx_run_histories_job_id ON run_histories (job_id);
 
 ------------------------------------------------------------------------
 
-## 5. 워커(Go) 설계
+## 5. 워커 설계 (Vercel Functions + Cron)
 
 ### 5.1 책임
 
 -   실행 시점 도달 Job 조회
--   **FOR UPDATE SKIP LOCKED**로 락 획득 (중복 실행 방지)
+-   **FOR UPDATE SKIP LOCKED**로 락 획득
+-   스케줄 인스턴스 기준 멱등 처리(중복 트리거가 와도 1회만 전송)
 -   LLM 호출 (gpt-5-mini, allow_web_search 반영)
 -   채널 전송
 -   RunHistory 저장
@@ -218,6 +236,9 @@ VALUES ($1, $2, now(), $3, $4, $5);
     -   OpenAI Web Search Tool 포함 호출
 -   타임아웃 필수(예: 60초)
 -   출력은 텍스트만 사용
+-   웹 검색 사용 시:
+    -   Responses API annotations(`url_citation`) 기반으로 citations를 추출/저장
+    -   tool 호출 정보(web_search_call)와 usage를 저장
 
 ------------------------------------------------------------------------
 
@@ -225,6 +246,8 @@ VALUES ($1, $2, now(), $3, $4, $5);
 
 -   Discord: Webhook POST `{ content: "..." }`
 -   Telegram: `sendMessage`
+-   Webhook: 기본 payload는 안정적인 JSON 형태로 전송
+    -   `{ title, body, content, usedWebSearch, citations, meta }`
 -   메시지 길이 초과 시 분할 전송
 -   메시지 헤더: `[Job 이름] YYYY-MM-DD HH:mm`
 

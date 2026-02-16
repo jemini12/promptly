@@ -59,6 +59,15 @@
   - Enforced equal size/typography between link/button controls for the same variant and size.
   - Added drift guard: `scripts/check-ui-controls.sh` and `npm run check:ui-controls`.
 
+- **DB/Auth Stabilization (2026-02-16)**:
+  - Prisma Accelerate + direct Postgres configuration clarified and documented.
+  - Prisma datasource mapping aligned to Vercel-style env vars:
+    - `PRISMA_DATABASE_URL`: Prisma Accelerate URL (runtime; must start with `prisma://` or `prisma+postgres://`)
+    - `DATABASE_URL`: direct Postgres URL (Prisma migrate/introspect)
+  - Fixed `.env` parsing pitfall: ensure each env var is on its own line (a missing newline can break `DATABASE_URL`).
+  - Prisma enum type names mapped to DB enum types via `@@map(...)` to avoid type mismatch errors.
+  - After env/schema changes, regenerating Prisma Client and restarting dev server unblocks NextAuth callbacks.
+
 ## In Place and Verified
 
 - Next.js production build passes (`npm run build`)
@@ -66,6 +75,12 @@
 - Local DB is available and migrations apply
 - Google OAuth callback works once DB is running
 - Preview works for authenticated users, including optional test-send to selected channel
+
+Dev auth troubleshooting notes (common):
+
+- `next-auth` `JWT_SESSION_ERROR` (JWE decryption failed) is typically stale cookies after a secret/env change.
+  - Fix: clear `next-auth.*` cookies for localhost and keep `NEXTAUTH_SECRET` stable.
+- Prisma datasource URL validation errors are almost always env var mismatch or malformed `.env` (e.g., missing newline).
 
 ## Remaining to Call Production-Ready
 

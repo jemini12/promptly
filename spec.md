@@ -22,7 +22,7 @@
     선택적으로 테스트 전송)
 -   전송 채널: Discord(Webhook), Telegram(Bot Token + Chat ID)
 -   실행 히스토리 저장
--   별도 **Go 워커**로 정기 실행 처리 (Vercel Cron 사용 안 함)
+-   **Vercel Cron Jobs + Vercel Functions**로 정기 실행 처리 (`/api/cron/run-jobs`)
 -   배포: Next.js(풀스택) on Vercel, PostgreSQL, Vercel Analytics,
     Vercel AI SDK
 
@@ -40,11 +40,11 @@
 
 -   Front/Back: Next.js(App Router) 풀스택
 -   Hosting: Vercel
--   DB: PostgreSQL (Vercel Postgres 또는 외부)
--   ORM: Prisma 또는 Drizzle (선택)
+-   DB: PostgreSQL
+-   ORM: Prisma
 -   Auth: OAuth 소셜 로그인 (Google, GitHub, Discord)
 -   AI: Vercel AI SDK, 모델 gpt-5-mini
--   Worker: Go (별도 프로세스)
+-   Worker: Vercel Functions + Vercel Cron Jobs
 -   채널:
     -   Discord: Webhook
     -   Telegram: Bot API
@@ -56,7 +56,7 @@
 
 -   Web(App):
     -   UI, Job 관리 API, Preview 실행 API, Auth
--   Worker(Go):
+-   Worker(Vercel Functions + Cron):
     -   DB 폴링 + 락 획득
     -   스케줄 도달 Job 실행
     -   LLM 호출(웹 검색 옵션 반영)
@@ -310,7 +310,7 @@ Auth: - OAuth 로그인 (Google, GitHub, Discord) - 자체 비밀번호
     -   UI에서는 마스킹
     -   로그 출력 금지
 -   세션: HTTP-only, Secure 쿠키
--   워커는 DATABASE_URL, OPENAI_API_KEY만 환경변수로 사용
+-   워커는 PRISMA_DATABASE_URL, OPENAI_API_KEY, CRON_SECRET만 환경변수로 사용
 
 ------------------------------------------------------------------------
 
@@ -341,7 +341,7 @@ Auth: - OAuth 로그인 (Google, GitHub, Discord) - 자체 비밀번호
 -   소셜 로그인 2종 이상 동작
 -   Job 생성/수정/삭제 가능
 -   미리 실행 동작
--   Go 워커가 스케줄 실행
+-   Vercel 워커(Functions + Cron)가 스케줄 실행
 -   Discord/Telegram 전송 성공
 -   RunHistory 저장/조회 가능
 -   Vercel 배포 완료
@@ -353,7 +353,7 @@ Auth: - OAuth 로그인 (Google, GitHub, Discord) - 자체 비밀번호
 1)  Auth + 기본 레이아웃
 2)  Job CRUD + DB 스키마
 3)  Job Editor UI + Preview
-4)  Go 워커 + 스케줄 실행
+4)  Vercel 워커(Functions + Cron) + 스케줄 실행
 5)  채널 전송
 6)  제한/에러 처리/관측 보강
 
@@ -369,7 +369,7 @@ Auth: - OAuth 로그인 (Google, GitHub, Discord) - 자체 비밀번호
     -   weekly 요일 셀렉트 표시
     -   cron 표현식 자연어 설명 표시
     -   Preview 테스트 전송(채널) 토글 반영
--   Go 워커 + 스케줄 실행: 완료
+-   Vercel 워커(Functions + Cron) + 스케줄 실행: 완료
 -   채널 전송(Discord/Telegram): 완료
 -   제한/에러 처리 보강: 완료
     -   일일 실행 제한(Preview 포함)

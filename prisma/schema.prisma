@@ -124,6 +124,11 @@ model RunHistory {
   // Full output for retrying delivery without re-running the LLM.
   outputText     String?  @map("output_text")
   outputPreview String?  @map("output_preview")
+  llmModel      String?  @map("llm_model")
+  llmUsage      Json?    @map("llm_usage")
+  llmToolCalls  Json?    @map("llm_tool_calls")
+  usedWebSearch Boolean  @default(false) @map("used_web_search")
+  citations     Json?    @map("citations")
   errorMessage  String?  @map("error_message")
   isPreview     Boolean  @default(false) @map("is_preview")
   // Correlation id for a cron invocation / execution.

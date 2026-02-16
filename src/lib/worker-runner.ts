@@ -86,13 +86,19 @@ async function recordDeliveryAttempt(runHistoryId: string, attempt: number, stat
   });
 }
 
-async function deliverWithRetryAndReceipts(runHistoryId: string, channel: ReturnType<typeof toRunnableChannel>, title: string, output: string) {
+async function deliverWithRetryAndReceipts(
+  runHistoryId: string,
+  channel: ReturnType<typeof toRunnableChannel>,
+  title: string,
+  output: string,
+  opts?: { citations?: { url: string; title?: string }[]; usedWebSearch?: boolean },
+) {
   const maxRetries = Number(process.env.WORKER_DELIVERY_MAX_RETRIES ?? 3);
   const retries = Number.isFinite(maxRetries) && maxRetries > 0 ? Math.floor(maxRetries) : 3;
 
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      await sendChannelMessage(channel, title, output);
+      await sendChannelMessage(channel, title, output, opts);
       await recordDeliveryAttempt(runHistoryId, attempt, "success");
       return { attempts: attempt, lastError: null as string | null };
     } catch (err) {
@@ -241,7 +247,25 @@ export async function runDueJobs(opts: { timeBudgetMs: number; maxJobs: number; 
         },
       });
 
-      const delivery = await deliverWithRetryAndReceipts(runHistoryId, toRunnableChannel(job), title, output);
+      const llmUsageJson = llm.llmUsage == null ? null : JSON.stringify(llm.llmUsage);
+      const llmToolCallsJson = llm.llmToolCalls == null ? null : JSON.stringify(llm.llmToolCalls);
+      const citationsJson = JSON.stringify(llm.citations);
+
+      await prisma.$executeRaw`
+        UPDATE "public"."run_histories"
+        SET
+          "llm_model" = ${llm.llmModel ?? null},
+          "llm_usage" = ${llmUsageJson}::jsonb,
+          "llm_tool_calls" = ${llmToolCallsJson}::jsonb,
+          "used_web_search" = ${llm.usedWebSearch},
+          "citations" = ${citationsJson}::jsonb
+        WHERE "id" = ${runHistoryId}::uuid
+      `;
+
+      const delivery = await deliverWithRetryAndReceipts(runHistoryId, toRunnableChannel(job), title, output, {
+        citations: llm.citations,
+        usedWebSearch: llm.usedWebSearch,
+      });
       if (delivery.lastError) {
         throw new Error(delivery.lastError);
       }

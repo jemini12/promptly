@@ -85,6 +85,10 @@ Deliverables:
 - Publish gates: require “green” evals for prompts that deliver externally.
 - Governance primitives: audit log for publishes/credential changes; retention policy + deletion.
 
+Implemented (initial slice):
+- AuditLog: record job create/update/delete and prompt publish events.
+- Prompt evals: minimal eval suites/cases and eval runs bound to a specific PromptVersion.
+
 Success criteria:
 - Prompt changes are safe to roll out; rollbacks are fast.
 - Support/debug is driven by run timeline + artifacts, not guesswork.

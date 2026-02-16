@@ -87,6 +87,10 @@
   - Webhook default payload is a stable JSON object with `title`, `body`, `content`, `usedWebSearch`, `citations`, and `meta`.
   - Job History UI shows web-search runs and Sources links.
 
+- **Evals + Governance (Phase 3, 2026-02-17)**:
+  - Audit log table (`audit_logs`) added; API writes audit entries for job create/update/delete and prompt publish.
+  - Eval suite/case/run tables added (`eval_suites`, `eval_cases`, `eval_runs`) with API endpoints to create suites and execute eval runs for a specific PromptVersion.
+
 ## In Place and Verified
 
 - Next.js production build passes (`npm run build`)

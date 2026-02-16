@@ -146,6 +146,15 @@ CREATE TABLE run_histories (
 CREATE INDEX idx_run_histories_job_id ON run_histories (job_id);
 ```
 
+### 4.4 audit_logs (거버넌스)
+
+- 목적: 사용자의 주요 변경 이력(잡 생성/수정/삭제, 프롬프트 발행 등)을 감사 로그로 남김
+
+### 4.5 eval_suites / eval_cases / eval_runs (프롬프트 평가)
+
+- 목적: PromptVersion 별로 간단한 회귀 테스트를 수행하고 결과를 저장
+- EvalCase는 variables(템플릿 변수)와 mustInclude(출력 포함 필수 문자열 목록)으로 구성
+
 ------------------------------------------------------------------------
 
 ## 5. 워커 설계 (Vercel Functions + Cron)

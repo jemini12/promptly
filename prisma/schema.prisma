@@ -45,6 +45,7 @@ enum ChannelType {
 }
 
 enum RunStatus {
+  running
   success
   fail
 
@@ -96,16 +97,44 @@ model Job {
 model RunHistory {
   id            String   @id @default(uuid()) @db.Uuid
   jobId         String   @map("job_id") @db.Uuid
+  // The scheduled time this run corresponds to (used for idempotency on cron runs).
+  scheduledFor   DateTime? @map("scheduled_for") @db.Timestamptz(6)
   runAt         DateTime @default(now()) @map("run_at") @db.Timestamptz(6)
   status        RunStatus
+  // Full output for retrying delivery without re-running the LLM.
+  outputText     String?  @map("output_text")
   outputPreview String?  @map("output_preview")
   errorMessage  String?  @map("error_message")
   isPreview     Boolean  @default(false) @map("is_preview")
+  // Correlation id for a cron invocation / execution.
+  runnerId       String?  @map("runner_id")
+  // Delivery receipt summary.
+  deliveredAt    DateTime? @map("delivered_at") @db.Timestamptz(6)
+  deliveryAttempts Int     @default(0) @map("delivery_attempts")
+  deliveryLastError String? @map("delivery_last_error")
 
   job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  deliveryAttemptsLog DeliveryAttempt[]
 
   @@index([jobId], map: "idx_run_histories_job_id")
+  @@unique([jobId, scheduledFor, isPreview], map: "uniq_run_histories_job_scheduled_for_preview")
   @@map("run_histories")
+}
+
+model DeliveryAttempt {
+  id           String   @id @default(uuid()) @db.Uuid
+  runHistoryId String   @map("run_history_id") @db.Uuid
+  attempt      Int
+  status       String
+  statusCode   Int?     @map("status_code")
+  errorMessage String?  @map("error_message")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  runHistory RunHistory @relation(fields: [runHistoryId], references: [id], onDelete: Cascade)
+
+  @@index([runHistoryId], map: "idx_delivery_attempts_run_history_id")
+  @@unique([runHistoryId, attempt], map: "uniq_delivery_attempts_run_history_attempt")
+  @@map("delivery_attempts")
 }
 
 model PreviewEvent {

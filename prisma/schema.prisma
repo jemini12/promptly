@@ -62,9 +62,26 @@ model User {
   createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   jobs           Job[]
   previewEvents  PreviewEvent[]
+  auditLogs      AuditLog[]
 
   @@unique([provider, providerUserId])
   @@map("users")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  data       Json?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt], map: "idx_audit_logs_user_id_created_at")
+  @@index([entityType, entityId], map: "idx_audit_logs_entity")
+  @@map("audit_logs")
 }
 
 model Job {
@@ -91,6 +108,7 @@ model Job {
   runHistories RunHistory[]
   promptVersions PromptVersion[]
   publishedPromptVersion PromptVersion? @relation("PublishedPromptVersion", fields: [publishedPromptVersionId], references: [id], onDelete: SetNull)
+  evalSuites    EvalSuite[]
 
   @@index([nextRunAt], map: "idx_jobs_next_run_at")
   @@index([enabled], map: "idx_jobs_enabled")
@@ -108,9 +126,53 @@ model PromptVersion {
   job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
   runs RunHistory[]
   publishedBy Job[] @relation("PublishedPromptVersion")
+  evalRuns EvalRun[]
 
   @@index([jobId], map: "idx_prompt_versions_job_id")
   @@map("prompt_versions")
+}
+
+model EvalSuite {
+  id        String   @id @default(uuid()) @db.Uuid
+  jobId     String   @map("job_id") @db.Uuid
+  name      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  job   Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  cases EvalCase[]
+  runs  EvalRun[]
+
+  @@index([jobId], map: "idx_eval_suites_job_id")
+  @@map("eval_suites")
+}
+
+model EvalCase {
+  id          String   @id @default(uuid()) @db.Uuid
+  suiteId     String   @map("suite_id") @db.Uuid
+  variables   Json
+  mustInclude Json     @map("must_include")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  suite EvalSuite @relation(fields: [suiteId], references: [id], onDelete: Cascade)
+
+  @@index([suiteId], map: "idx_eval_cases_suite_id")
+  @@map("eval_cases")
+}
+
+model EvalRun {
+  id             String   @id @default(uuid()) @db.Uuid
+  suiteId        String   @map("suite_id") @db.Uuid
+  promptVersionId String  @map("prompt_version_id") @db.Uuid
+  status         String
+  results        Json
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  suite EvalSuite     @relation(fields: [suiteId], references: [id], onDelete: Cascade)
+  promptVersion PromptVersion @relation(fields: [promptVersionId], references: [id], onDelete: Cascade)
+
+  @@index([suiteId], map: "idx_eval_runs_suite_id")
+  @@index([promptVersionId], map: "idx_eval_runs_prompt_version_id")
+  @@map("eval_runs")
 }
 
 model RunHistory {

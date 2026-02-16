@@ -5,6 +5,7 @@ import { errorResponse } from "@/lib/http";
 import { jobUpsertSchema } from "@/lib/validation";
 import { computeNextRunAt } from "@/lib/schedule";
 import { toDbChannelConfig, toMaskedApiJob } from "@/lib/jobs";
+import { recordAudit } from "@/lib/audit";
 
 export async function GET() {
   try {
@@ -65,6 +66,32 @@ export async function POST(request: NextRequest) {
       where: { id: job.id },
       data: { publishedPromptVersionId: latest?.id ?? null },
     });
+
+    await recordAudit({
+      userId,
+      action: "job.create",
+      entityType: "job",
+      entityId: updated.id,
+      data: {
+        allowWebSearch: updated.allowWebSearch,
+        scheduleType: updated.scheduleType,
+        scheduleTime: updated.scheduleTime,
+        scheduleDayOfWeek: updated.scheduleDayOfWeek,
+        scheduleCron: updated.scheduleCron,
+        channelType: updated.channelType,
+        enabled: updated.enabled,
+      },
+    });
+
+    if (latest?.id) {
+      await recordAudit({
+        userId,
+        action: "prompt.publish",
+        entityType: "prompt_version",
+        entityId: latest.id,
+        data: { jobId: updated.id },
+      });
+    }
 
     return NextResponse.json({ job: toMaskedApiJob(updated) });
   } catch (error) {

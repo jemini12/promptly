@@ -5,6 +5,7 @@ import { errorResponse } from "@/lib/http";
 import { jobUpsertSchema } from "@/lib/validation";
 import { computeNextRunAt } from "@/lib/schedule";
 import { toDbChannelConfig, toMaskedApiJob } from "@/lib/jobs";
+import { recordAudit } from "@/lib/audit";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -60,6 +61,32 @@ export async function PUT(request: NextRequest, { params }: Params) {
       data: { publishedPromptVersionId: latest?.id ?? null },
     });
 
+    await recordAudit({
+      userId,
+      action: "job.update",
+      entityType: "job",
+      entityId: updated.id,
+      data: {
+        allowWebSearch: updated.allowWebSearch,
+        scheduleType: updated.scheduleType,
+        scheduleTime: updated.scheduleTime,
+        scheduleDayOfWeek: updated.scheduleDayOfWeek,
+        scheduleCron: updated.scheduleCron,
+        channelType: updated.channelType,
+        enabled: updated.enabled,
+      },
+    });
+
+    if (latest?.id) {
+      await recordAudit({
+        userId,
+        action: "prompt.publish",
+        entityType: "prompt_version",
+        entityId: latest.id,
+        data: { jobId: updated.id },
+      });
+    }
+
     return NextResponse.json({ job: toMaskedApiJob(updated) });
   } catch (error) {
     return errorResponse(error);
@@ -72,6 +99,13 @@ export async function DELETE(_: NextRequest, { params }: Params) {
     const { id } = await params;
 
     await prisma.job.deleteMany({ where: { id, userId } });
+
+    await recordAudit({
+      userId,
+      action: "job.delete",
+      entityType: "job",
+      entityId: id,
+    });
     return NextResponse.json({ ok: true });
   } catch (error) {
     return errorResponse(error);

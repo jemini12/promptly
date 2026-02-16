@@ -460,32 +460,34 @@ export function JobPreviewSection() {
           {state.preview.loading ? uiText.jobEditor.preview.running : uiText.jobEditor.preview.run}
         </Button>
       </div>
-      <label className="mt-3 inline-flex items-center gap-2 text-xs text-zinc-700">
-        <input type="checkbox" checked={testSend} onChange={(event) => setTestSend(event.target.checked)} />
-        {uiText.jobEditor.preview.testSend}
-      </label>
-      <label className="mt-2 inline-flex items-center gap-2 text-xs text-zinc-700">
-        <input type="checkbox" checked={runAsScheduled} onChange={(event) => setRunAsScheduled(event.target.checked)} />
-        Run as scheduled
-      </label>
-      {runAsScheduled ? (
-        <div className="mt-2 grid gap-2 sm:grid-cols-2">
-          <input
-            type="datetime-local"
-            value={runAt}
-            onChange={(event) => setRunAt(event.target.value)}
-            className="input-base"
-            aria-label="Run time"
-          />
-          <input
-            value={timezone}
-            onChange={(event) => setTimezone(event.target.value)}
-            className="input-base"
-            placeholder="Timezone (optional)"
-            aria-label="Timezone"
-          />
-        </div>
-      ) : null}
+      <div className="mt-3 grid gap-2 text-xs text-zinc-700">
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={testSend} onChange={(event) => setTestSend(event.target.checked)} />
+          <span>{uiText.jobEditor.preview.testSend}</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={runAsScheduled} onChange={(event) => setRunAsScheduled(event.target.checked)} />
+          <span>Run as scheduled</span>
+        </label>
+        {runAsScheduled ? (
+          <div className="grid gap-2 sm:grid-cols-2">
+            <input
+              type="datetime-local"
+              value={runAt}
+              onChange={(event) => setRunAt(event.target.value)}
+              className="input-base"
+              aria-label="Run time"
+            />
+            <input
+              value={timezone}
+              onChange={(event) => setTimezone(event.target.value)}
+              className="input-base"
+              placeholder="Timezone (optional)"
+              aria-label="Timezone"
+            />
+          </div>
+        ) : null}
+      </div>
       <pre
         className="mt-3 min-h-24 max-h-80 overflow-auto whitespace-pre-wrap rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700"
         aria-live="polite"

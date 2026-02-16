@@ -10,7 +10,13 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // Runtime URL (Prisma Client). For Prisma Accelerate, this must start with:
+  // - prisma://  OR  prisma+postgres://
+  url      = env("PRISMA_DATABASE_URL")
+
+  // Direct Postgres URL used by Prisma tools (migrate/introspect).
+  // Your existing snippet uses DATABASE_URL for this direct connection.
+  directUrl = env("DATABASE_URL")
 }
 
 enum AuthProvider {
@@ -18,23 +24,31 @@ enum AuthProvider {
   github
   discord
   telegram
+
+  @@map("auth_provider")
 }
 
 enum ScheduleType {
   daily
   weekly
   cron
+
+  @@map("schedule_type")
 }
 
 enum ChannelType {
   discord
   telegram
   webhook
+
+  @@map("channel_type")
 }
 
 enum RunStatus {
   success
   fail
+
+  @@map("run_status")
 }
 
 model User {

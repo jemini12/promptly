@@ -4,6 +4,7 @@ import { runPrompt } from "@/lib/llm";
 import { sendChannelMessage, ChannelRequestError } from "@/lib/channel";
 import { toRunnableChannel } from "@/lib/jobs";
 import { computeNextRunAt } from "@/lib/schedule";
+import { enforceDailyRunLimit } from "@/lib/limits";
 
 const DEFAULT_LOCK_STALE_MINUTES = 10;
 const MAX_FAILS_BEFORE_DISABLE = 10;
@@ -71,28 +72,40 @@ async function lockNextDueJob() {
   return { id: rows[0].id, lockedAt: rows[0].locked_at };
 }
 
-async function deliverWithRetry(channel: ReturnType<typeof toRunnableChannel>, title: string, output: string) {
+async function recordDeliveryAttempt(runHistoryId: string, attempt: number, status: string, statusCode?: number, errorMessage?: string) {
+  await prisma.deliveryAttempt.create({
+    data: {
+      runHistoryId,
+      attempt,
+      status,
+      statusCode: statusCode ?? null,
+      errorMessage: errorMessage ?? null,
+    },
+  });
+}
+
+async function deliverWithRetryAndReceipts(runHistoryId: string, channel: ReturnType<typeof toRunnableChannel>, title: string, output: string) {
   const maxRetries = Number(process.env.WORKER_DELIVERY_MAX_RETRIES ?? 3);
   const retries = Number.isFinite(maxRetries) && maxRetries > 0 ? Math.floor(maxRetries) : 3;
 
-  let lastErr: unknown;
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       await sendChannelMessage(channel, title, output);
-      return;
+      await recordDeliveryAttempt(runHistoryId, attempt, "success");
+      return { attempts: attempt, lastError: null as string | null };
     } catch (err) {
-      lastErr = err;
-      const status = err instanceof ChannelRequestError ? err.status : undefined;
-      if (!status || !shouldRetryStatus(status) || attempt >= retries) {
-        throw err;
+      const statusCode = err instanceof ChannelRequestError ? err.status : undefined;
+      const message = err instanceof Error ? err.message : String(err);
+      await recordDeliveryAttempt(runHistoryId, attempt, "fail", statusCode, truncate(message, ERROR_MAX));
+
+      if (!statusCode || !shouldRetryStatus(statusCode) || attempt >= retries) {
+        return { attempts: attempt, lastError: truncate(message, ERROR_MAX) };
       }
       await sleep(retryBackoff(attempt));
     }
   }
 
-  if (lastErr) {
-    throw lastErr;
-  }
+  return { attempts: retries, lastError: "Delivery failed" };
 }
 
 async function runPromptWithRetry(prompt: string, allowWebSearch: boolean) {
@@ -119,70 +132,18 @@ async function runPromptWithRetry(prompt: string, allowWebSearch: boolean) {
   throw new Error("LLM execution failed");
 }
 
-async function finishSuccess(jobId: string, lockedAt: Date, nextRunAt: Date, output: string) {
-  return prisma.$transaction(async (tx) => {
-    const updated = await tx.job.updateMany({
-      where: { id: jobId, lockedAt },
-      data: { lockedAt: null, failCount: 0, nextRunAt },
-    });
-    if (updated.count !== 1) {
-      return { updated: false as const };
-    }
-
-    await tx.runHistory.create({
-      data: {
-        jobId,
-        status: "success",
-        outputPreview: truncate(output, OUTPUT_PREVIEW_MAX),
-        errorMessage: null,
-        isPreview: false,
-      },
-    });
-    return { updated: true as const };
-  });
-}
-
-async function finishFailure(jobId: string, lockedAt: Date, nextRunAt: Date, failCount: number, errorMessage: string) {
-  const nextFailCount = failCount + 1;
-  const disable = nextFailCount >= MAX_FAILS_BEFORE_DISABLE;
-
-  return prisma.$transaction(async (tx) => {
-    const updated = await tx.job.updateMany({
-      where: { id: jobId, lockedAt },
-      data: {
-        lockedAt: null,
-        failCount: nextFailCount,
-        enabled: disable ? false : undefined,
-        nextRunAt,
-      },
-    });
-    if (updated.count !== 1) {
-      return { updated: false as const };
-    }
-
-    await tx.runHistory.create({
-      data: {
-        jobId,
-        status: "fail",
-        outputPreview: null,
-        errorMessage: truncate(errorMessage, ERROR_MAX),
-        isPreview: false,
-      },
-    });
-    return { updated: true as const, disabled: disable };
-  });
-}
-
 export type RunDueJobsResult = {
   processed: number;
   success: number;
   fail: number;
   disabled: number;
+  duplicates: number;
+  quotaBlocked: number;
 };
 
-export async function runDueJobs(opts: { timeBudgetMs: number; maxJobs: number }): Promise<RunDueJobsResult> {
+export async function runDueJobs(opts: { timeBudgetMs: number; maxJobs: number; runnerId?: string }): Promise<RunDueJobsResult> {
   const startedAt = Date.now();
-  const result: RunDueJobsResult = { processed: 0, success: 0, fail: 0, disabled: 0 };
+  const result: RunDueJobsResult = { processed: 0, success: 0, fail: 0, disabled: 0, duplicates: 0, quotaBlocked: 0 };
 
   while (true) {
     if (result.processed >= opts.maxJobs) {
@@ -204,14 +165,88 @@ export async function runDueJobs(opts: { timeBudgetMs: number; maxJobs: number }
       continue;
     }
 
+    const scheduledFor = job.nextRunAt;
+
     const title = `[${job.name}] ${format(new Date(), "yyyy-MM-dd HH:mm")}`;
+
+    let runHistoryId: string | null = null;
+    try {
+      const created = await prisma.runHistory.create({
+        data: {
+          jobId: job.id,
+          scheduledFor,
+          status: "running",
+          outputText: null,
+          outputPreview: null,
+          errorMessage: null,
+          isPreview: false,
+          runnerId: opts.runnerId ?? null,
+          deliveredAt: null,
+          deliveryAttempts: 0,
+          deliveryLastError: null,
+        },
+        select: { id: true },
+      });
+      runHistoryId = created.id;
+    } catch (err) {
+      const isUnique =
+        typeof err === "object" &&
+        err !== null &&
+        "code" in err &&
+        (err as { code?: unknown }).code === "P2002";
+      if (!isUnique) {
+        throw err;
+      }
+
+      let nextRunAt: Date;
+      try {
+        nextRunAt = computeNextRunAt(
+          {
+            scheduleType: job.scheduleType,
+            scheduleTime: job.scheduleTime,
+            scheduleDayOfWeek: job.scheduleDayOfWeek,
+            scheduleCron: job.scheduleCron,
+          },
+          new Date(),
+        );
+      } catch {
+        nextRunAt = new Date(Date.now() + 10 * 60 * 1000);
+      }
+
+      await prisma.job.updateMany({ where: { id: job.id, lockedAt: lock.lockedAt }, data: { lockedAt: null, nextRunAt } });
+      result.processed++;
+      result.duplicates++;
+      continue;
+    }
 
     let output = "";
     let error: unknown;
     try {
+      await enforceDailyRunLimit(job.userId);
       const llm = await runPromptWithRetry(job.prompt, job.allowWebSearch);
       output = llm.output;
-      await deliverWithRetry(toRunnableChannel(job), title, output);
+
+      await prisma.runHistory.update({
+        where: { id: runHistoryId },
+        data: {
+          outputText: output,
+          outputPreview: truncate(output, OUTPUT_PREVIEW_MAX),
+        },
+      });
+
+      const delivery = await deliverWithRetryAndReceipts(runHistoryId, toRunnableChannel(job), title, output);
+      if (delivery.lastError) {
+        throw new Error(delivery.lastError);
+      }
+
+      await prisma.runHistory.update({
+        where: { id: runHistoryId },
+        data: {
+          deliveredAt: new Date(),
+          deliveryAttempts: delivery.attempts,
+          deliveryLastError: null,
+        },
+      });
     } catch (err) {
       error = err;
     }
@@ -233,7 +268,23 @@ export async function runDueJobs(opts: { timeBudgetMs: number; maxJobs: number }
     }
 
     if (!error) {
-      const finished = await finishSuccess(job.id, lock.lockedAt, nextRunAt, output);
+      const finished = await prisma.$transaction(async (tx) => {
+        const updated = await tx.job.updateMany({
+          where: { id: job.id, lockedAt: lock.lockedAt },
+          data: { lockedAt: null, failCount: 0, nextRunAt },
+        });
+        if (updated.count !== 1) {
+          return { updated: false as const };
+        }
+        await tx.runHistory.update({
+          where: { id: runHistoryId },
+          data: {
+            status: "success",
+            errorMessage: null,
+          },
+        });
+        return { updated: true as const };
+      });
       result.processed++;
       if (finished.updated) {
         result.success++;
@@ -243,11 +294,57 @@ export async function runDueJobs(opts: { timeBudgetMs: number; maxJobs: number }
       continue;
     }
 
-    const finished = await finishFailure(job.id, lock.lockedAt, nextRunAt, job.failCount, error instanceof Error ? error.message : String(error));
+    const errorMessage = truncate(error instanceof Error ? error.message : String(error), ERROR_MAX);
+    const quotaBlocked = errorMessage.startsWith("Daily run limit exceeded");
+
+    const finished = await prisma.$transaction(async (tx) => {
+      const base = { updated: false, disabled: false, quotaBlocked: false };
+
+      if (quotaBlocked) {
+        const updated = await tx.job.updateMany({ where: { id: job.id, lockedAt: lock.lockedAt }, data: { lockedAt: null, nextRunAt } });
+        if (updated.count !== 1) {
+          return base;
+        }
+        await tx.runHistory.update({
+          where: { id: runHistoryId },
+          data: {
+            status: "fail",
+            errorMessage,
+          },
+        });
+        return { updated: true, disabled: false, quotaBlocked: true };
+      }
+
+      const nextFailCount = job.failCount + 1;
+      const disable = nextFailCount >= MAX_FAILS_BEFORE_DISABLE;
+      const updated = await tx.job.updateMany({
+        where: { id: job.id, lockedAt: lock.lockedAt },
+        data: {
+          lockedAt: null,
+          failCount: nextFailCount,
+          enabled: disable ? false : undefined,
+          nextRunAt,
+        },
+      });
+      if (updated.count !== 1) {
+        return base;
+      }
+      await tx.runHistory.update({
+        where: { id: runHistoryId },
+        data: {
+          status: "fail",
+          errorMessage,
+        },
+      });
+      return { updated: true, disabled: disable, quotaBlocked: false };
+    });
     result.processed++;
     if (finished.updated) {
       result.fail++;
-      if ("disabled" in finished && finished.disabled) {
+      if (finished.quotaBlocked) {
+        result.quotaBlocked++;
+      }
+      if (finished.disabled) {
         result.disabled++;
       }
     } else {

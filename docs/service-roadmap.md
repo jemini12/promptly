@@ -54,6 +54,7 @@ Deliverables:
 - Prompt templates with variables (typed inputs + defaults) instead of a single opaque string.
 - Immutable PromptVersion + publish/rollback; scheduled runs bind to a specific published version.
 - “Run as scheduled” preview mode: choose timestamp/timezone, same formatting and tool policy.
+- Prompt authoring assist: Prompt Writer (template picker + strict prompt enhancement) in the Job Editor.
 
 Success criteria:
 - Users can reproduce a run with the exact prompt/config used.

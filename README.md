@@ -75,6 +75,8 @@ curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/run-
 - `/jobs/[id]/history` run history
 - `/signin` social sign-in page
 
+Prompt Writer (templates + enhance) is available inside the Job Editor prompt section.
+
 ## API
 
 - `GET /api/jobs`
@@ -84,3 +86,8 @@ curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/run-
 - `POST /api/jobs/:id/preview`
 - `POST /api/preview`
 - `GET /api/jobs/:id/histories`
+
+Prompt Writer:
+
+- `GET /api/prompt-writer/templates`
+- `POST /api/prompt-writer/enhance`

@@ -91,6 +91,13 @@
   - Audit log table (`audit_logs`) added; API writes audit entries for job create/update/delete and prompt publish.
   - Eval suite/case/run tables added (`eval_suites`, `eval_cases`, `eval_runs`) with API endpoints to create suites and execute eval runs for a specific PromptVersion.
 
+- **Prompt Writer (2026-02-17)**:
+  - DB-backed prompt templates (`prompt_writer_templates`) with seeded built-ins.
+  - Auth-protected APIs:
+    - `GET /api/prompt-writer/templates`
+    - `POST /api/prompt-writer/enhance` (strict-by-default; toggle stronger rewrite)
+  - Job Editor: Prompt Writer panel to apply templates and enhance prompts.
+
 ## In Place and Verified
 
 - Next.js production build passes (`npm run build`)

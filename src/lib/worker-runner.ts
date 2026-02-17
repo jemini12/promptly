@@ -7,6 +7,7 @@ import { computeNextRunAt } from "@/lib/schedule";
 import { enforceDailyRunLimit } from "@/lib/limits";
 import { renderPromptTemplate } from "@/lib/prompt-template";
 import { getOrCreatePublishedPromptVersion } from "@/lib/prompt-version";
+import { DEFAULT_LLM_MODEL, normalizeWebSearchMode, type WebSearchMode } from "@/lib/llm-defaults";
 
 const DEFAULT_LOCK_STALE_MINUTES = 10;
 const MAX_FAILS_BEFORE_DISABLE = 10;
@@ -120,7 +121,7 @@ async function deliverWithRetryAndReceipts(
   return { attempts: retries, lastError: "Delivery failed" };
 }
 
-async function runPromptWithRetry(prompt: string, opts: { model: string; allowWebSearch: boolean; webSearchMode: "perplexity" | "parallel" }) {
+async function runPromptWithRetry(prompt: string, opts: { model: string; allowWebSearch: boolean; webSearchMode: WebSearchMode }) {
   const maxRetries = Number(process.env.WORKER_LLM_MAX_RETRIES ?? 2);
   const retries = Number.isFinite(maxRetries) && maxRetries > 0 ? Math.floor(maxRetries) : 2;
 
@@ -241,9 +242,9 @@ export async function runDueJobs(opts: { timeBudgetMs: number; maxJobs: number; 
     try {
       await enforceDailyRunLimit(job.userId);
       const llm = await runPromptWithRetry(renderedPrompt, {
-        model: job.llmModel ?? "openai/gpt-5-mini",
+        model: job.llmModel ?? DEFAULT_LLM_MODEL,
         allowWebSearch: job.allowWebSearch,
-        webSearchMode: job.webSearchMode === "parallel" ? "parallel" : "perplexity",
+        webSearchMode: normalizeWebSearchMode(job.webSearchMode),
       });
       output = llm.output;
 

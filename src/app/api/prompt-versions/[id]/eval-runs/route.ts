@@ -5,6 +5,7 @@ import { requireUserId } from "@/lib/authz";
 import { errorResponse } from "@/lib/http";
 import { renderPromptTemplate } from "@/lib/prompt-template";
 import { runPrompt } from "@/lib/llm";
+import { DEFAULT_LLM_MODEL, DEFAULT_WEB_SEARCH_MODE } from "@/lib/llm-defaults";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -70,9 +71,9 @@ export async function POST(request: NextRequest, { params }: Params) {
 
       try {
         const llm = await runPrompt(prompt, {
-          model: "openai/gpt-5-mini",
+          model: DEFAULT_LLM_MODEL,
           allowWebSearch: false,
-          webSearchMode: "perplexity",
+          webSearchMode: DEFAULT_WEB_SEARCH_MODE,
         });
         const out = llm.output;
         const missing = mustInclude.filter((s) => !out.includes(s));

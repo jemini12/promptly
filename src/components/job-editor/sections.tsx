@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useJobForm } from "@/components/job-editor/job-form-provider";
 import { Button } from "@/components/ui/button";
 import { uiText } from "@/content/ui-text";
+import { DEFAULT_LLM_MODEL } from "@/lib/llm-defaults";
 
 const sectionClass = "surface-card";
 const dayOptions = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -293,7 +294,7 @@ export function JobOptionsSection() {
           value={state.llmModel}
           onChange={(event) => setState((prev) => ({ ...prev, llmModel: event.target.value }))}
           className="input-base h-10"
-          placeholder="openai/gpt-5-mini"
+          placeholder={DEFAULT_LLM_MODEL}
         />
         <p className="text-xs text-zinc-500">{uiText.jobEditor.options.modelHelp}</p>
         <label className="inline-flex items-center gap-2 text-sm text-zinc-900">

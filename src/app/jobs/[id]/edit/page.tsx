@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/prisma";
 import { decryptString } from "@/lib/crypto";
+import { DEFAULT_LLM_MODEL, normalizeWebSearchMode } from "@/lib/llm-defaults";
 import { JobEditorPage } from "@/components/job-editor/job-editor-page";
 import { SiteNav } from "@/components/site-nav";
 
@@ -70,9 +71,9 @@ export default async function EditJobPage({ params }: Params) {
             name: job.name,
             prompt: template,
             variables,
-            llmModel: job.llmModel ?? "openai/gpt-5-mini",
+            llmModel: job.llmModel ?? DEFAULT_LLM_MODEL,
             allowWebSearch: job.allowWebSearch,
-            webSearchMode: job.webSearchMode === "parallel" ? "parallel" : "perplexity",
+            webSearchMode: normalizeWebSearchMode(job.webSearchMode),
             scheduleType: job.scheduleType,
             time: job.scheduleTime,
             dayOfWeek: job.scheduleDayOfWeek ?? undefined,

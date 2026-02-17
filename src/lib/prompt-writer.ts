@@ -1,4 +1,6 @@
 import { generateText } from "ai";
+import { extractUsage } from "@/lib/ai-result";
+import { DEFAULT_LLM_MODEL } from "@/lib/llm-defaults";
 import { isRecord } from "@/lib/type-guards";
 
 type EnhancePromptInput = {
@@ -52,7 +54,7 @@ function buildEnhancerInstructions(allowStrongerRewrite: boolean): string {
 
 export async function enhancePrompt(input: EnhancePromptInput): Promise<EnhancePromptOutput> {
   const result = await generateText({
-    model: "openai/gpt-5-mini",
+    model: DEFAULT_LLM_MODEL,
     system: buildEnhancerInstructions(input.allowStrongerRewrite),
     prompt: input.prompt,
     timeout: 60_000,
@@ -89,8 +91,8 @@ export async function enhancePrompt(input: EnhancePromptInput): Promise<EnhanceP
       suggestedVariables,
       rationale,
       warnings,
-      llmModel: "openai/gpt-5-mini",
-      llmUsage: (result as unknown as { usage?: unknown }).usage,
+      llmModel: DEFAULT_LLM_MODEL,
+      llmUsage: extractUsage(result),
     };
   } catch (err) {
     throw err;

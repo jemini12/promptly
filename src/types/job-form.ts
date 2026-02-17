@@ -1,10 +1,12 @@
+import { DEFAULT_LLM_MODEL, DEFAULT_WEB_SEARCH_MODE, type WebSearchMode } from "@/lib/llm-defaults";
+
 export type JobFormState = {
   name: string;
   prompt: string;
   variables: string;
   llmModel: string;
   allowWebSearch: boolean;
-  webSearchMode: "perplexity" | "parallel";
+  webSearchMode: WebSearchMode;
   scheduleType: "daily" | "weekly" | "cron";
   time: string;
   dayOfWeek?: number;
@@ -36,9 +38,9 @@ export const defaultJobFormState: JobFormState = {
   name: "",
   prompt: "",
   variables: "{}",
-  llmModel: "openai/gpt-5-mini",
+  llmModel: DEFAULT_LLM_MODEL,
   allowWebSearch: false,
-  webSearchMode: "perplexity",
+  webSearchMode: DEFAULT_WEB_SEARCH_MODE,
   scheduleType: "daily",
   time: "09:00",
   dayOfWeek: 1,

@@ -1,10 +1,10 @@
 import { generateText, gateway } from "ai";
 import { SERVICE_SYSTEM_PROMPT } from "@/lib/system-prompt";
 import { isRecord } from "@/lib/type-guards";
+import { extractToolCalls, extractToolResults, extractUsage } from "@/lib/ai-result";
+import type { WebSearchMode } from "@/lib/llm-defaults";
 
 type Citation = { url: string; title?: string };
-
-type WebSearchMode = "perplexity" | "parallel";
 
 export type RunPromptOptions = {
   model: string;
@@ -94,9 +94,9 @@ export async function runPrompt(prompt: string, opts: RunPromptOptions): Promise
     throw new Error("LLM returned empty output");
   }
 
-  const citations = extractCitationsFromToolResults((result as unknown as { toolResults?: unknown }).toolResults);
-  const toolCalls = (result as unknown as { toolCalls?: unknown }).toolCalls;
-  const toolResults = (result as unknown as { toolResults?: unknown }).toolResults;
+  const toolCalls = extractToolCalls(result);
+  const toolResults = extractToolResults(result);
+  const citations = extractCitationsFromToolResults(toolResults);
   const usedWebSearch = opts.allowWebSearch && (Array.isArray(toolCalls) || Array.isArray(toolResults) || citations.length > 0);
 
   return {
@@ -104,7 +104,7 @@ export async function runPrompt(prompt: string, opts: RunPromptOptions): Promise
     usedWebSearch,
     citations,
     llmModel: opts.model,
-    llmUsage: (result as unknown as { usage?: unknown }).usage,
+    llmUsage: extractUsage(result),
     llmToolCalls: usedWebSearch ? { toolCalls, toolResults } : undefined,
   };
 }

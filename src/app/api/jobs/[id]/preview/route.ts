@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { format } from "date-fns";
 import { Prisma } from "@prisma/client";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/authz";
 import { errorResponse } from "@/lib/http";
@@ -10,15 +11,20 @@ import { toRunnableChannel } from "@/lib/jobs";
 import { enforceDailyRunLimit } from "@/lib/limits";
 import { renderPromptTemplate } from "@/lib/prompt-template";
 import { getOrCreatePublishedPromptVersion } from "@/lib/prompt-version";
+import { DEFAULT_LLM_MODEL, normalizeWebSearchMode } from "@/lib/llm-defaults";
 
 type Params = { params: Promise<{ id: string }> };
+
+const bodySchema = z.object({
+  testSend: z.boolean().optional().default(false),
+});
 
 export async function POST(request: NextRequest, { params }: Params) {
   try {
     const userId = await requireUserId();
     await enforceDailyRunLimit(userId);
     const { id } = await params;
-    const body = (await request.json()) as { testSend?: boolean };
+    const body = bodySchema.parse(await request.json());
 
     const job = await prisma.job.findFirst({ where: { id, userId }, include: { publishedPromptVersion: true } });
     if (!job) {
@@ -31,9 +37,9 @@ export async function POST(request: NextRequest, { params }: Params) {
     const prompt = renderPromptTemplate({ template, vars });
 
     const result = await runPrompt(prompt, {
-      model: job.llmModel ?? "openai/gpt-5-mini",
+      model: job.llmModel ?? DEFAULT_LLM_MODEL,
       allowWebSearch: job.allowWebSearch,
-      webSearchMode: job.webSearchMode === "parallel" ? "parallel" : "perplexity",
+      webSearchMode: normalizeWebSearchMode(job.webSearchMode),
     });
     const title = `[${job.name}] ${format(new Date(), "yyyy-MM-dd HH:mm")}`;
 
@@ -45,21 +51,21 @@ export async function POST(request: NextRequest, { params }: Params) {
       });
     }
 
-    const runData = {
-      jobId: job.id,
-      promptVersionId: pv.id,
-      status: "success",
-      outputText: result.output,
-      outputPreview: result.output.slice(0, 1000),
-      llmModel: result.llmModel ?? null,
-      llmUsage: result.llmUsage == null ? Prisma.DbNull : (result.llmUsage as Prisma.InputJsonValue),
-      llmToolCalls: result.llmToolCalls == null ? Prisma.DbNull : (result.llmToolCalls as Prisma.InputJsonValue),
-      usedWebSearch: result.usedWebSearch,
-      citations: result.citations,
-      isPreview: true,
-    };
-
-    await prisma.runHistory.create({ data: runData as unknown as Prisma.RunHistoryUncheckedCreateInput });
+    await prisma.runHistory.create({
+      data: {
+        job: { connect: { id: job.id } },
+        promptVersion: { connect: { id: pv.id } },
+        status: "success",
+        outputText: result.output,
+        outputPreview: result.output.slice(0, 1000),
+        llmModel: result.llmModel ?? null,
+        llmUsage: result.llmUsage == null ? Prisma.DbNull : (result.llmUsage as Prisma.InputJsonValue),
+        llmToolCalls: result.llmToolCalls == null ? Prisma.DbNull : (result.llmToolCalls as Prisma.InputJsonValue),
+        usedWebSearch: result.usedWebSearch,
+        citations: (result.citations as unknown as Prisma.InputJsonValue) ?? Prisma.DbNull,
+        isPreview: true,
+      },
+    });
     await prisma.previewEvent.create({ data: { userId } });
 
     return NextResponse.json({

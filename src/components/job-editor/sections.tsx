@@ -48,6 +48,9 @@ export function JobPromptSection() {
   >([]);
   const [templatesStatus, setTemplatesStatus] = useState<"idle" | "loading" | "ready" | "fail">("idle");
   const [selectedTemplateKey, setSelectedTemplateKey] = useState<string>("");
+  const [enhancing, setEnhancing] = useState(false);
+  const [allowStrongerRewrite, setAllowStrongerRewrite] = useState(false);
+  const [enhanceError, setEnhanceError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,6 +102,56 @@ export function JobPromptSection() {
     }));
   }
 
+  async function enhance() {
+    if (!state.prompt.trim()) return;
+    setEnhancing(true);
+    setEnhanceError(null);
+    try {
+      const response = await fetch("/api/prompt-writer/enhance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: state.prompt, allowStrongerRewrite }),
+      });
+
+      const data = (await response.json()) as {
+        improvedTemplate?: string;
+        suggestedVariables?: unknown;
+        error?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(data.error ?? uiText.jobEditor.prompt.writer.enhanceFailed);
+      }
+
+      const improved = typeof data.improvedTemplate === "string" ? data.improvedTemplate : "";
+      if (!improved.trim()) {
+        throw new Error(uiText.jobEditor.prompt.writer.enhanceFailed);
+      }
+
+      let nextVariables: string | null = null;
+      if (data.suggestedVariables && typeof data.suggestedVariables === "object" && !Array.isArray(data.suggestedVariables)) {
+        try {
+          nextVariables = JSON.stringify(data.suggestedVariables, null, 2);
+        } catch {
+          nextVariables = null;
+        }
+      }
+
+      setState((prev) => ({
+        ...prev,
+        prompt: improved,
+        variables:
+          nextVariables && (prev.variables.trim() === "" || prev.variables.trim() === "{}")
+            ? nextVariables
+            : prev.variables,
+      }));
+    } catch (error) {
+      setEnhanceError(error instanceof Error ? error.message : uiText.jobEditor.prompt.writer.enhanceFailed);
+    } finally {
+      setEnhancing(false);
+    }
+  }
+
   return (
     <section className={sectionClass}>
       <div className="flex items-center justify-between">
@@ -146,17 +199,40 @@ export function JobPromptSection() {
       <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-3">
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm font-medium text-zinc-900">{uiText.jobEditor.prompt.writer.title}</p>
-          <Button
-            type="button"
-            onClick={applySelectedTemplate}
-            variant="secondary"
-            size="sm"
-            className="shadow-sm"
-            disabled={templatesStatus !== "ready" || !selectedTemplateKey}
-          >
-            {uiText.jobEditor.prompt.writer.applyTemplate}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              onClick={enhance}
+              variant="secondary"
+              size="sm"
+              className="shadow-sm"
+              loading={enhancing}
+              disabled={enhancing || !state.prompt.trim()}
+            >
+              {enhancing ? uiText.jobEditor.prompt.writer.enhancing : uiText.jobEditor.prompt.writer.enhance}
+            </Button>
+            <Button
+              type="button"
+              onClick={applySelectedTemplate}
+              variant="secondary"
+              size="sm"
+              className="shadow-sm"
+              disabled={templatesStatus !== "ready" || !selectedTemplateKey}
+            >
+              {uiText.jobEditor.prompt.writer.applyTemplate}
+            </Button>
+          </div>
         </div>
+        <label className="mt-2 flex items-center gap-2 text-xs text-zinc-700">
+          <input
+            type="checkbox"
+            checked={allowStrongerRewrite}
+            onChange={(event) => setAllowStrongerRewrite(event.target.checked)}
+            disabled={enhancing}
+          />
+          <span>{uiText.jobEditor.prompt.writer.strongerRewrite}</span>
+        </label>
+        {enhanceError ? <p className="mt-2 text-xs text-red-600">{enhanceError}</p> : null}
         <div className="mt-2 grid gap-2 sm:grid-cols-3">
           <label className="text-xs text-zinc-600 sm:col-span-1" htmlFor="prompt-writer-template">
             {uiText.jobEditor.prompt.writer.templatesLabel}

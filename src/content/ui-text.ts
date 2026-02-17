@@ -162,6 +162,10 @@ export const uiText = {
         templatesLoading: "Loading templates...",
         templatesFailed: "Failed to load templates.",
         applyTemplate: "Apply template",
+        enhance: "Enhance",
+        enhancing: "Enhancing...",
+        strongerRewrite: "Allow stronger rewrite",
+        enhanceFailed: "Enhancement failed.",
       },
     },
     options: {

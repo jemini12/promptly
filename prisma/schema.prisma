@@ -91,6 +91,8 @@ model Job {
   prompt            String
   publishedPromptVersionId String? @map("published_prompt_version_id") @db.Uuid
   allowWebSearch    Boolean      @default(false) @map("allow_web_search")
+  llmModel          String?      @map("llm_model")
+  webSearchMode     String?      @map("web_search_mode")
   scheduleType      ScheduleType @map("schedule_type")
   scheduleTime      String       @map("schedule_time")
   scheduleDayOfWeek Int?         @map("schedule_day_of_week")

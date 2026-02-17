@@ -236,3 +236,15 @@ model PreviewEvent {
   @@index([userId, createdAt], map: "idx_preview_events_user_id_created_at")
   @@map("preview_events")
 }
+
+model PromptWriterTemplate {
+  id               String   @id @default(uuid()) @db.Uuid
+  key              String   @unique @db.VarChar(64)
+  name             String
+  description      String?
+  template         String
+  defaultVariables Json?    @map("default_variables")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("prompt_writer_templates")
+}

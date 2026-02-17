@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { isRecord } from "@/lib/type-guards";
 
 type EnhancePromptInput = {
   prompt: string;
@@ -13,10 +14,6 @@ type EnhancePromptOutput = {
   llmModel?: string;
   llmUsage?: unknown;
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 function asString(value: unknown): string | null {
   return typeof value === "string" ? value : null;

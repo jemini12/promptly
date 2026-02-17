@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { SERVICE_SYSTEM_PROMPT } from "@/lib/system-prompt";
+import { isRecord } from "@/lib/type-guards";
 
 type Citation = { url: string; title?: string };
 
@@ -11,10 +12,6 @@ type RunPromptResult = {
   llmUsage?: unknown;
   llmToolCalls?: unknown;
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 function extractCitationsAndTools(output: unknown): { citations: Citation[]; webSearchCalls: unknown[]; usedWebSearch: boolean } {
   const citations: Citation[] = [];

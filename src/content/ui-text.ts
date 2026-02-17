@@ -156,6 +156,8 @@ export const uiText = {
       clear: "Clear",
       useExample: "Use example",
       examplePrompt: "Summarize top AI news in 5 bullets with one contrarian insight.",
+      variablesLabel: "Variables (JSON)",
+      variablesHelp: "Optional. Use {{var_name}} placeholders in the prompt template.",
       writer: {
         title: "Prompt Writer",
         templatesLabel: "Template",

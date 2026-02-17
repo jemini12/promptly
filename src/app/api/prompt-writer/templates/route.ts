@@ -20,6 +20,6 @@ export async function GET() {
 
     return NextResponse.json({ templates });
   } catch (error) {
-    return errorResponse(error, 401);
+    return errorResponse(error);
   }
 }

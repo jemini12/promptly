@@ -114,3 +114,8 @@ export const jobUpsertSchema = z
     ...value,
     scheduleTime: value.scheduleType === "cron" ? "00:00" : (value.scheduleTime ?? "00:00"),
   }));
+
+export const promptWriterEnhanceSchema = z.object({
+  prompt: z.string().min(1).max(8000),
+  allowStrongerRewrite: z.boolean().optional().default(false),
+});

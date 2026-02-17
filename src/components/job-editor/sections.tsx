@@ -9,6 +9,17 @@ import { uiText } from "@/content/ui-text";
 const sectionClass = "surface-card";
 const dayOptions = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
+function asPrettyJsonObjectString(value: unknown): string | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return null;
+  }
+}
+
 function describeCron(expression: string) {
   if (!expression.trim()) {
     return uiText.jobEditor.schedule.emptyCron;
@@ -53,11 +64,11 @@ export function JobPromptSection() {
   const [enhanceError, setEnhanceError] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
     async function load() {
       setTemplatesStatus("loading");
       try {
-        const response = await fetch("/api/prompt-writer/templates");
+        const response = await fetch("/api/prompt-writer/templates", { signal: controller.signal });
         const data = (await response.json()) as {
           templates?: Array<{ key: string; name: string; description: string | null; template: string; defaultVariables: unknown }>;
           error?: string;
@@ -65,20 +76,20 @@ export function JobPromptSection() {
         if (!response.ok) {
           throw new Error(data.error ?? "Failed to load templates");
         }
-        if (cancelled) return;
+        if (controller.signal.aborted) return;
         const list = Array.isArray(data.templates) ? data.templates : [];
         setTemplates(list);
         setSelectedTemplateKey((prev) => prev || (list[0]?.key ?? ""));
         setTemplatesStatus("ready");
       } catch {
-        if (cancelled) return;
+        if (controller.signal.aborted) return;
         setTemplatesStatus("fail");
       }
     }
 
     void load();
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, []);
 
@@ -86,14 +97,7 @@ export function JobPromptSection() {
     const selected = templates.find((t) => t.key === selectedTemplateKey);
     if (!selected) return;
 
-    let variablesJson = "{}";
-    if (selected.defaultVariables && typeof selected.defaultVariables === "object" && !Array.isArray(selected.defaultVariables)) {
-      try {
-        variablesJson = JSON.stringify(selected.defaultVariables, null, 2);
-      } catch {
-        variablesJson = "{}";
-      }
-    }
+    const variablesJson = asPrettyJsonObjectString(selected.defaultVariables) ?? "{}";
 
     setState((prev) => ({
       ...prev,
@@ -129,13 +133,7 @@ export function JobPromptSection() {
       }
 
       let nextVariables: string | null = null;
-      if (data.suggestedVariables && typeof data.suggestedVariables === "object" && !Array.isArray(data.suggestedVariables)) {
-        try {
-          nextVariables = JSON.stringify(data.suggestedVariables, null, 2);
-        } catch {
-          nextVariables = null;
-        }
-      }
+      nextVariables = asPrettyJsonObjectString(data.suggestedVariables);
 
       setState((prev) => ({
         ...prev,
@@ -266,9 +264,9 @@ export function JobPromptSection() {
       </div>
 
       <label className="field-label mt-4" htmlFor="job-variables">
-        Variables (JSON)
+        {uiText.jobEditor.prompt.variablesLabel}
       </label>
-      <p className="field-help">Optional. Use {"{{var_name}}"} placeholders in the prompt template.</p>
+      <p className="field-help">{uiText.jobEditor.prompt.variablesHelp}</p>
       <textarea
         id="job-variables"
         value={state.variables}

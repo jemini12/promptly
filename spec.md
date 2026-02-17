@@ -16,22 +16,24 @@
 -   Job(프롬프트 작업) CRUD
 -   스케줄링: daily / weekly / cron
 -   단일 모델: **gpt-5-mini**
--   옵션: **웹 검색 토글(allow_web_search)** --- OpenAI Web Search Tool
-    지원 모델로만 동작
+-   (기본) 모델: `openai/gpt-5-mini` (AI Gateway model id)
+-   옵션: **웹 검색 토글(allow_web_search)**
+    -   웹 검색은 유저가 원할 때만 켠다(기본 OFF)
+    -   (확장) Vercel AI Gateway Web Search 옵션으로 동작
 -   **미리 실행(Preview)**: 저장 전 즉시 1회 실행 + 화면 미리보기 (+
     선택적으로 테스트 전송)
 -   전송 채널: Discord(Webhook), Telegram(Bot Token + Chat ID)
 -   실행 히스토리 저장
 -   **Vercel Cron Jobs + Vercel Functions**로 정기 실행 처리 (`/api/cron/run-jobs`)
 -   배포: Next.js(풀스택) on Vercel, PostgreSQL, Vercel Analytics,
-    Vercel AI SDK
+    Vercel AI SDK (AI Gateway)
 
 ### 1.2 제외
 
 -   팀/공유
 -   과금/결제
 -   체인 프롬프트/에이전트
--   외부 데이터 소스 연동(웹 검색은 OpenAI tool만)
+-   외부 데이터 소스 연동(웹 검색은 AI Gateway Web Search tool 범위 내)
 -   고급 리포트/분석
 
 ------------------------------------------------------------------------
@@ -43,7 +45,7 @@
 -   DB: PostgreSQL
 -   ORM: Prisma
 -   Auth: OAuth 소셜 로그인 (Google, GitHub, Discord)
--   AI: Vercel AI SDK, 모델 gpt-5-mini
+-   AI: Vercel AI SDK (AI Gateway)
 -   Worker: Vercel Functions + Vercel Cron Jobs
 -   채널:
     -   Discord: Webhook
@@ -238,11 +240,11 @@ VALUES ($1, $2, now(), $3, $4, $5);
 
 ## 6. LLM 호출 정책
 
--   모델: **gpt-5-mini 단일**
+-   모델: Job 단위로 `llm_model` 선택 (기본: `openai/gpt-5-mini`)
 -   allow_web_search=false:
     -   일반 생성 호출
 -   allow_web_search=true:
-    -   OpenAI Web Search Tool 포함 호출
+    -   AI Gateway Web Search tool 포함 호출 (유저가 켠 경우에만)
 -   타임아웃 필수(예: 60초)
 -   출력은 텍스트만 사용
 -   웹 검색 사용 시:
@@ -342,7 +344,57 @@ Auth: - OAuth 로그인 (Google, GitHub, Discord) - 자체 비밀번호
     -   UI에서는 마스킹
     -   로그 출력 금지
 -   세션: HTTP-only, Secure 쿠키
--   워커는 PRISMA_DATABASE_URL, OPENAI_API_KEY, CRON_SECRET만 환경변수로 사용
+-   워커 환경변수:
+    -   PRISMA_DATABASE_URL, AI_GATEWAY_API_KEY, CRON_SECRET
+
+------------------------------------------------------------------------
+
+## 18. Vercel AI Gateway 멀티 모델 + Web Search 계획
+
+> 목표: "강제" 없이 유저가 모델/웹검색을 선택하면 그때만 활성화. 기본값은 항상 보수적으로(웹검색 OFF).
+
+### 18.1 요구사항
+
+-   유저가 Job 단위로 다음을 선택 가능해야 한다.
+    -   `llmModel`: 실행 모델 (예: `openai/gpt-5-mini`, `anthropic/...`, `google/...`)
+    -   `allowWebSearch`: 웹 검색 ON/OFF (기본 OFF)
+    -   `webSearchMode`: 웹 검색 방식
+        -   `universal_perplexity` (Gateway tool: Perplexity Search)
+        -   `universal_parallel` (Gateway tool: Parallel Search)
+        -   `openai_native` / `anthropic_native` / `google_native` (provider-specific)
+
+### 18.2 데이터 모델 변경
+
+-   `jobs`에 컬럼 추가: 완료
+    -   `llm_model TEXT NULL` (Gateway 모델 식별자)
+    -   `web_search_mode TEXT NULL` (현재는 universal 모드만 사용)
+
+### 18.3 API/실행 경로 변경
+
+-   Preview 및 워커 실행 모두 동일한 선택 규칙을 사용한다.
+    -   `allowWebSearch=false`:
+        -   어떤 검색 tool도 붙이지 않는다.
+    -   `allowWebSearch=true`:
+        -   `webSearchMode`에 따라 Gateway Web Search tool을 붙인다.
+
+### 18.4 Fallback/라우팅 규칙
+
+-   "웹 검색 ON"인 경우, 검색 기능이 깨지는 provider로 fallback하지 않는다.
+    -   현재 구현은 universal(perplexity/parallel)만 사용
+        -   tool이 provider-agnostic이므로 모델/provider fallback을 열어둘 수 있음
+
+### 18.5 UX
+
+-   JobOptionsSection에 다음 UI를 제공
+    -   Model select (`llmModel`)
+    -   Web search checkbox (`allowWebSearch`)
+    -   Web search mode select (`webSearchMode`) --- 웹 검색 ON일 때만 노출
+    -   비용 안내(Perplexity/Parallel 등 유료 웹검색은 ON 시 고지)
+
+### 18.6 환경변수(계획)
+
+-   `AI_GATEWAY_API_KEY`: Vercel AI Gateway 인증키
+-   provider-specific 검색 도구를 사용할 경우 provider별 키/BYOK 정책은 Gateway 문서에 따름
 
 ------------------------------------------------------------------------
 

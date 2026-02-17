@@ -7,7 +7,7 @@ Prompt scheduler that executes `gpt-5-mini` on daily/weekly/cron and sends outpu
 - Next.js App Router + TypeScript + Tailwind
 - PostgreSQL + Prisma
 - NextAuth social auth (Google/GitHub/Discord)
-- OpenAI Responses API (`gpt-5-mini`, optional `web_search_preview` tool)
+- Vercel AI SDK (AI Gateway provider; model ids like `openai/gpt-5-mini`)
 - Vercel Functions (Fluid Compute) + Vercel Cron Jobs for scheduled execution
 
 ## Environment Variables
@@ -18,7 +18,7 @@ Required values:
 
 - `PRISMA_DATABASE_URL` (Prisma Accelerate URL; used at runtime)
 - `DATABASE_URL` (direct Postgres URL; used for Prisma migrate/introspect)
-- `OPENAI_API_KEY`
+- `AI_GATEWAY_API_KEY` (or Vercel OIDC in deployments)
 - `NEXTAUTH_SECRET`
 - OAuth keys:
   - `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`

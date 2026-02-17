@@ -123,6 +123,7 @@ Dev auth troubleshooting notes (common):
 
 - End-to-end production smoke test (scheduled run -> channel delivery -> history verification)
 - Deployment hardening (real secrets, domain/TLS, OAuth production callback setup)
+- Planned: Vercel AI Gateway adoption (multi-model + user-controlled web search modes)
 - Optional: additional tests (API integration/e2e) for regression safety
 - Production runbook for backup/restore and on-call troubleshooting
 

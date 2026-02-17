@@ -21,7 +21,11 @@ Promptloop is not a generic automation builder (Zapier/n8n). The differentiator 
 
 ## Current Baseline (Today)
 
-- LLM execution: OpenAI Responses API, hardcoded `gpt-5-mini`, static system prompt, optional `web_search_preview`.
+- LLM execution: Vercel AI SDK (AI Gateway), model ids like `openai/gpt-5-mini`, optional web search via Gateway tools.
+
+Planned:
+
+- Vercel AI Gateway adoption for multi-model routing and web search tools (universal and provider-specific).
 - Scheduling: Vercel Cron hits `GET /api/cron/run-jobs` every minute; DB locking via `FOR UPDATE SKIP LOCKED`.
 - Delivery: Discord/Telegram/Webhook with basic chunking; retries with exponential backoff.
 - History: stores run histories (success/fail) with truncated output/error; previews tracked.

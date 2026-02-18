@@ -1,6 +1,8 @@
 # Gemini thought_signature notes
 
-This repo uses Vercel AI SDK tool calling in a 2-step flow (tool call -> tool result -> final answer). Gemini (Google/Vertex) can require a thought signature to be preserved when replaying tool call transcripts.
+Note: This was relevant to a previous implementation that replayed tool-call transcripts across steps. The current implementation uses provider-native web search tools in a single `generateText()` call (no transcript replay), so this issue should not apply unless we reintroduce replay.
+
+Gemini (Google/Vertex) can require a thought signature to be preserved when replaying tool call transcripts.
 
 ## What it is
 
@@ -18,7 +20,7 @@ References:
 
 ## Why it broke here
 
-Our web-search path uses a 2-step transcript replay:
+Previously, our web-search path used a 2-step transcript replay:
 
 1) Step 1: `generateText()` with a search tool enabled produces `toolCalls` and `toolResults`.
 2) Step 2: we replay those as `messages` (assistant tool-call parts + tool-result parts) to get the final answer.
@@ -27,14 +29,13 @@ Gemini expects provider metadata from Step 1 tool call parts to be forwarded whe
 
 ## How we fixed it
 
-- AI SDK prompt message parts support `providerOptions` on `ToolCallPart` and `ToolResultPart` (this is the documented pass-through channel).
-- At runtime, tool calls/results may include `providerMetadata`. We now copy that into `providerOptions` when building replay parts.
+- AI SDK prompt message parts support `providerOptions` on `ToolCallPart` and `ToolResultPart` (the pass-through channel).
+- At runtime, tool calls/results may include `providerMetadata`. We copied that into `providerOptions` when building replay parts.
 
 Code paths:
-- `src/lib/llm.ts` preserves provider metadata in replay parts.
-- `scripts/ai-gateway-smoke.mjs` does the same for the smoke test.
+- Historical: `src/lib/llm.ts` preserved provider metadata in replay parts.
+- Historical: `scripts/ai-gateway-smoke.mjs` preserved provider metadata in replay parts.
 
 ## Follow-ups
 
-- Consider setting gateway routing for web-search requests (providerOptions.gateway.only/order) so the gateway does not fall back to providers/models with incompatible tool-calling requirements.
-- Keep the smoke test pinned to a Gemini model for web search to detect regressions: `AI_GATEWAY_SMOKE_TOOL_MODELS=google/gemini-3-flash`.
+- If we reintroduce transcript replay, ensure provider metadata is preserved across steps.

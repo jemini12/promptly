@@ -33,7 +33,7 @@ This verifies:
 4) Run Preview and confirm:
    - Output renders
    - `usedWebSearch=false`
-5) Turn Web search ON and choose a mode (Perplexity/Parallel), run Preview again.
+5) Turn Web search ON (provider-native only), run Preview again.
 6) Save job, then confirm run history at `/jobs/[id]/history` after a scheduled run or a cron trigger.
 
 Optional: you can run the smoke script with an authenticated cookie:

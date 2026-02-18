@@ -20,34 +20,22 @@ Goal: support multiple models through Vercel AI Gateway, while keeping web searc
 
 - Add `jobs.llm_model` (string, gateway model id like `openai/gpt-5-mini`).
 - Add `jobs.web_search_mode` (string):
-  - `universal_perplexity`
-  - `universal_parallel`
-  - `openai_native`
-  - `anthropic_native`
-  - `google_native`
+    - `native`
 
 ### UI (Job Editor)
 
 - Model select (writes `llmModel` to job)
 - Web search toggle (already exists)
-- Web search mode select (only visible when web search toggle is on)
-- Cost notice when web search is enabled (Perplexity/Parallel are billed per request)
+- Web search uses provider-native tool based on selected model
 
 ### Execution Policy
 
 - If `useWebSearch=false`: do not attach any search tools.
-- If `useWebSearch=true`: attach the tool implied by `webSearchMode`.
+- If `useWebSearch=true`: attach the provider-native tool implied by `llmModel` prefix.
 
 ### Routing / Fallback Policy (AI Gateway)
 
-Use `providerOptions.gateway`:
-
-- Provider-specific search mode:
-  - Set `providerOptions.gateway.only` to the provider of the selected mode.
-  - Ensure fallback models are restricted to that provider.
-- Universal search mode (Perplexity/Parallel):
-  - Tool is provider-agnostic; provider/model fallback is allowed.
-  - (Optional) still allow an allowlist if you want cost control.
+- Prefer restricting provider routing for web-search runs (to avoid falling back to a provider that can't satisfy the native tool).
 
 Relevant docs:
 - Web Search modes and tools: https://vercel.com/docs/ai-gateway/capabilities/web-search

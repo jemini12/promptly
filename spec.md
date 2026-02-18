@@ -358,16 +358,13 @@ Auth: - OAuth 로그인 (Google, GitHub, Discord) - 자체 비밀번호
 -   유저가 Job 단위로 다음을 선택 가능해야 한다.
     -   `llmModel`: 실행 모델 (예: `openai/gpt-5-mini`, `anthropic/...`, `google/...`)
 -   `useWebSearch`: 웹 검색 ON/OFF (기본 OFF)
-    -   `webSearchMode`: 웹 검색 방식
-        -   `universal_perplexity` (Gateway tool: Perplexity Search)
-        -   `universal_parallel` (Gateway tool: Parallel Search)
-        -   `openai_native` / `anthropic_native` / `google_native` (provider-specific)
+    -   `webSearchMode`: `native` (provider-native web search만 사용; `llmModel` prefix로 provider를 결정)
 
 ### 18.2 데이터 모델 변경
 
 -   `jobs`에 컬럼 추가: 완료
     -   `llm_model TEXT NULL` (Gateway 모델 식별자)
-    -   `web_search_mode TEXT NULL` (현재는 universal 모드만 사용)
+    -   `web_search_mode TEXT NULL` (현재는 `native`만 사용)
 
 ### 18.3 API/실행 경로 변경
 
@@ -375,21 +372,22 @@ Auth: - OAuth 로그인 (Google, GitHub, Discord) - 자체 비밀번호
 -   `useWebSearch=false`:
         -   어떤 검색 tool도 붙이지 않는다.
 -   `useWebSearch=true`:
-        -   `webSearchMode`에 따라 Gateway Web Search tool을 붙인다.
+        -   `llmModel` prefix에 따라 provider-native web search tool을 1개만 붙인다.
+            -   `openai/*` -> OpenAI web search tool
+            -   `anthropic/*` -> Anthropic web search tool
+            -   `google/*` -> Google web search tool
 
 ### 18.4 Fallback/라우팅 규칙
 
 -   "웹 검색 ON"인 경우, 검색 기능이 깨지는 provider로 fallback하지 않는다.
-    -   현재 구현은 universal(perplexity/parallel)만 사용
-        -   tool이 provider-agnostic이므로 모델/provider fallback을 열어둘 수 있음
+    -   웹 검색은 provider-native tool에 의존하므로, 가능하면 동일 provider로만 실행되도록 라우팅 제한을 검토한다.
 
 ### 18.5 UX
 
 -   JobOptionsSection에 다음 UI를 제공
     -   Model select (`llmModel`)
 -   Web search checkbox (`useWebSearch`)
-    -   Web search mode select (`webSearchMode`) --- 웹 검색 ON일 때만 노출
-    -   비용 안내(Perplexity/Parallel 등 유료 웹검색은 ON 시 고지)
+    -   Web search mode select는 제공하지 않는다 (`native` 고정)
 
 ### 18.6 환경변수(계획)
 

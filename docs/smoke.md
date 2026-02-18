@@ -23,6 +23,23 @@ This verifies:
 - Key APIs are auth-protected (401 when not signed in)
 - Cron route requires auth header when `CRON_SECRET` is set
 
+## AI Gateway smoke (provider-native web search)
+
+This verifies that provider-native web search works across multiple providers via AI Gateway.
+
+```bash
+npm run smoke:ai-gateway
+```
+
+Required env:
+
+- `AI_GATEWAY_API_KEY` (or `VERCEL_OIDC_TOKEN`)
+
+Optional env:
+
+- `AI_GATEWAY_SMOKE_SEARCH_MODELS` (comma-separated `provider/model` list)
+- `AI_GATEWAY_SMOKE_SEARCH_PROMPTS` (newline-separated prompts; each must be answerable with citations)
+
 ## Signed-in smoke (manual)
 
 1) Sign in via `/signin`.

@@ -5,7 +5,7 @@ Goal: support multiple models through Vercel AI Gateway, while keeping web searc
 ## Principles
 
 - Web search is never forced. User must opt in per job (`useWebSearch=true`).
-- When web search is enabled, never route/fallback to a provider/model combination that cannot satisfy the selected search mode.
+- When web search is enabled, never route/fallback to a provider/model combination that cannot satisfy the provider-native search tool.
 - Preview and scheduled runs share the same model/tool policy.
 
 ## Current State (Today)
@@ -33,6 +33,11 @@ Goal: support multiple models through Vercel AI Gateway, while keeping web searc
 - If `useWebSearch=false`: do not attach any search tools.
 - If `useWebSearch=true`: attach the provider-native tool implied by `llmModel` prefix.
 
+Implementation note:
+
+- Provider-native web search tools are defined via AI SDK provider packages (`@ai-sdk/openai`, `@ai-sdk/anthropic`, `@ai-sdk/google`).
+- Model execution still uses AI Gateway model ids like `openai/gpt-5-mini`.
+
 ### Routing / Fallback Policy (AI Gateway)
 
 - Prefer restricting provider routing for web-search runs (to avoid falling back to a provider that can't satisfy the native tool).
@@ -44,10 +49,10 @@ Relevant docs:
 
 ## Rollout (Phased)
 
-1) Add DB fields + UI controls (model + web search mode).
-2) Switch LLM calls to AI Gateway and map `webSearchMode` to Gateway tools.
-3) Add routing/fallback constraints via `providerOptions.gateway`.
-4) Update run artifacts to record which search tool/mode was used.
+1) Add DB fields + UI controls (model + web search toggle).
+2) Implement provider-native web search tool selection by `llmModel` prefix.
+3) (Optional) Add routing constraints via `providerOptions.gateway` to avoid provider fallback on web-search runs.
+4) Ensure run artifacts store tool calls and citations.
 
 ## Environment
 

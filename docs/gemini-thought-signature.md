@@ -34,7 +34,7 @@ Gemini expects provider metadata from Step 1 tool call parts to be forwarded whe
 
 Code paths:
 - Historical: `src/lib/llm.ts` preserved provider metadata in replay parts.
-- Historical: `scripts/ai-gateway-smoke.mjs` preserved provider metadata in replay parts.
+- Historical: the removed AI Gateway smoke script preserved provider metadata in replay parts.
 
 ## Follow-ups
 

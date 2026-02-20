@@ -78,7 +78,7 @@
   - Prompt templates + Variables (JSON) with `{{var}}` substitution and built-ins (date/time/now_iso/timezone).
   - Immutable `prompt_versions` table and `jobs.published_prompt_version_id` publish pointer.
   - Scheduled runs and previews bind to a specific PromptVersion (`run_histories.prompt_version_id`).
-  - Preview UI supports “run as scheduled” (timestamp/timezone).
+  - Preview supports optional test-send to selected channel.
 
 - **Artifacts + Output Contracts v1 (Phase 2, 2026-02-17)**:
   - Persist run artifacts on `run_histories`: `llm_model`, `llm_usage`, `llm_tool_calls`, `used_web_search`, `citations`.
@@ -96,7 +96,7 @@
     - `POST /api/prompt-writer/enhance` (strict-by-default; toggle stronger rewrite)
   - Job Editor: Prompt Writer panel to enhance prompts.
 
-- **Job Builder Chat (2026-02-18)**:
+- **Create with Chat (2026-02-18)**:
   - Authenticated `/chat` page for chat-based job creation.
   - Streaming API: `POST /api/chat` with AI SDK UI stream protocol.
   - Optional persistence: `chats` + `chat_messages` with basic secret redaction.
@@ -127,7 +127,7 @@ Dev auth troubleshooting notes (common):
 
 - End-to-end production smoke test (scheduled run -> channel delivery -> history verification)
 - Deployment hardening (real secrets, domain/TLS, OAuth production callback setup)
-- Planned: Vercel AI Gateway adoption (multi-model + user-controlled web search modes)
+- OpenAI provider adoption (direct provider + user-controlled web search) is complete; remaining work is hardening and regression coverage.
 - Optional: additional tests (API integration/e2e) for regression safety
 - Production runbook for backup/restore and on-call troubleshooting
 

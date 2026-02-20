@@ -21,11 +21,11 @@ Promptloop is not a generic automation builder (Zapier/n8n). The differentiator 
 
 ## Current Baseline (Today)
 
-- LLM execution: Vercel AI SDK (AI Gateway), model ids like `openai/gpt-5-mini`, optional web search via Gateway tools.
+- LLM execution: Vercel AI SDK + OpenAI provider, model ids like `gpt-5-mini`, optional web search via OpenAI web_search tool.
 
 Planned:
 
-- Vercel AI Gateway adoption for multi-model routing and web search tools (universal and provider-specific).
+- Web search via OpenAI web_search tool.
 - Scheduling: Vercel Cron hits `GET /api/cron/run-jobs` every minute; DB locking via `FOR UPDATE SKIP LOCKED`.
 - Delivery: Discord/Telegram/Webhook with basic chunking; retries with exponential backoff.
 - History: stores run histories (success/fail) with truncated output/error; previews tracked.
@@ -57,8 +57,7 @@ Success criteria:
 Deliverables:
 - Prompt templates with variables (typed inputs + defaults) instead of a single opaque string.
 - Immutable PromptVersion + publish/rollback; scheduled runs bind to a specific published version.
-- “Run as scheduled” preview mode: choose timestamp/timezone, same formatting and tool policy.
-- Prompt authoring assist: Prompt Writer (template picker + strict prompt enhancement) in the Job Editor.
+  - Prompt authoring assist: Prompt Writer (template picker + strict prompt enhancement) in the Job Editor.
 
 Success criteria:
 - Users can reproduce a run with the exact prompt/config used.

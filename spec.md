@@ -16,24 +16,24 @@
 -   Job(프롬프트 작업) CRUD
 -   스케줄링: daily / weekly / cron
 -   단일 모델: **gpt-5-mini**
--   (기본) 모델: `openai/gpt-5-mini` (AI Gateway model id)
+-   (기본) 모델: `gpt-5-mini`
 -   옵션: **웹 검색 토글(allow_web_search)**
     -   웹 검색은 유저가 원할 때만 켠다(기본 OFF)
-    -   (확장) Vercel AI Gateway Web Search 옵션으로 동작
+-   (확장) OpenAI web search tool로 동작
 -   **미리 실행(Preview)**: 저장 전 즉시 1회 실행 + 화면 미리보기 (+
     선택적으로 테스트 전송)
 -   전송 채널: Discord(Webhook), Telegram(Bot Token + Chat ID)
 -   실행 히스토리 저장
 -   **Vercel Cron Jobs + Vercel Functions**로 정기 실행 처리 (`/api/cron/run-jobs`)
 -   배포: Next.js(풀스택) on Vercel, PostgreSQL, Vercel Analytics,
-    Vercel AI SDK (AI Gateway)
+    Vercel AI SDK + OpenAI provider
 
 ### 1.2 제외
 
 -   팀/공유
 -   과금/결제
 -   체인 프롬프트/에이전트
--   외부 데이터 소스 연동(웹 검색은 AI Gateway Web Search tool 범위 내)
+-   외부 데이터 소스 연동
 -   고급 리포트/분석
 
 ------------------------------------------------------------------------
@@ -45,7 +45,7 @@
 -   DB: PostgreSQL
 -   ORM: Prisma
 -   Auth: OAuth 소셜 로그인 (Google, GitHub, Discord)
--   AI: Vercel AI SDK (AI Gateway)
+-   AI: Vercel AI SDK + OpenAI provider
 -   Worker: Vercel Functions + Vercel Cron Jobs
 -   채널:
     -   Discord: Webhook
@@ -54,7 +54,7 @@
 
 -----------------------------------------------------------------------
 
-## 2.1 Job Builder Chat (추가)
+## 2.1 Create with Chat (Job Builder)
 
 > 목적: 자연어 대화로 Job을 생성/수정/미리보기할 수 있는 보조 UI.
 
@@ -80,7 +80,7 @@ Acceptance Criteria:
 - 정보가 부족한 경우(예: time 누락) 추가 질문을 하고, 필요한 값이 모이면 job 생성 tool을 호출한다.
 - job 생성 후 `/jobs/[id]/edit`로 이동할 수 있는 링크가 표시된다.
 - 세션 만료 시 `/api/chat`가 401을 반환하고, UI는 `/signin?callbackUrl=/chat`로 리다이렉트한다.
-- (persist=true) 새 chatId로 대화를 시작하면 history API로 복원된다.
+- (persist=true) 새 chatId로 대화를 시작하면 history API로 복원된다 (저장은 스트리밍 렌더 이후 비동기 수행).
 
 ------------------------------------------------------------------------
 
@@ -270,11 +270,11 @@ VALUES ($1, $2, now(), $3, $4, $5);
 
 ## 6. LLM 호출 정책
 
--   모델: Job 단위로 `llm_model` 선택 (기본: `openai/gpt-5-mini`)
+-   모델: Job 단위로 `llm_model` 선택 (기본: `gpt-5-mini`)
 -   allow_web_search=false:
     -   일반 생성 호출
 -   allow_web_search=true:
-    -   AI Gateway Web Search tool 포함 호출 (유저가 켠 경우에만)
+-   OpenAI web_search tool 포함 호출 (유저가 켠 경우에만)
 -   타임아웃 필수(예: 60초)
 -   출력은 텍스트만 사용
 -   웹 검색 사용 시:
@@ -375,25 +375,25 @@ Auth: - OAuth 로그인 (Google, GitHub, Discord) - 자체 비밀번호
     -   로그 출력 금지
 -   세션: HTTP-only, Secure 쿠키
 -   워커 환경변수:
-    -   PRISMA_DATABASE_URL, AI_GATEWAY_API_KEY, CRON_SECRET
+-   PRISMA_DATABASE_URL, OPENAI_API_KEY, CRON_SECRET
 
 ------------------------------------------------------------------------
 
-## 18. Vercel AI Gateway 멀티 모델 + Web Search 계획
+## 18. OpenAI 모델 + Web Search 계획
 
 > 목표: "강제" 없이 유저가 모델/웹검색을 선택하면 그때만 활성화. 기본값은 항상 보수적으로(웹검색 OFF).
 
 ### 18.1 요구사항
 
 -   유저가 Job 단위로 다음을 선택 가능해야 한다.
-    -   `llmModel`: 실행 모델 (예: `openai/gpt-5-mini`, `anthropic/...`, `google/...`)
+    -   `llmModel`: 실행 모델 (예: `gpt-5-mini`)
 -   `useWebSearch`: 웹 검색 ON/OFF (기본 OFF)
     -   `webSearchMode`: `native` (provider-native web search만 사용; `llmModel` prefix로 provider를 결정)
 
 ### 18.2 데이터 모델 변경
 
 -   `jobs`에 컬럼 추가: 완료
-    -   `llm_model TEXT NULL` (Gateway 모델 식별자)
+    -   `llm_model TEXT NULL` (OpenAI 모델 id)
     -   `web_search_mode TEXT NULL` (현재는 `native`만 사용)
 
 ### 18.3 API/실행 경로 변경
@@ -402,10 +402,7 @@ Auth: - OAuth 로그인 (Google, GitHub, Discord) - 자체 비밀번호
 -   `useWebSearch=false`:
         -   어떤 검색 tool도 붙이지 않는다.
 -   `useWebSearch=true`:
-        -   `llmModel` prefix에 따라 provider-native web search tool을 1개만 붙인다.
-            -   `openai/*` -> OpenAI web search tool
-            -   `anthropic/*` -> Anthropic web search tool
-            -   `google/*` -> Google web search tool
+        -   OpenAI web search tool을 사용한다.
 
 ### 18.4 Fallback/라우팅 규칙
 
@@ -421,9 +418,7 @@ Auth: - OAuth 로그인 (Google, GitHub, Discord) - 자체 비밀번호
 
 ### 18.6 환경변수(계획)
 
--   `AI_GATEWAY_API_KEY`: Vercel AI Gateway 인증키
--   provider-specific 검색 도구를 사용할 경우 provider별 키/BYOK 정책은 Gateway 문서에 따름
--   구현은 provider-native web search tool 정의를 위해 AI SDK provider packages를 사용한다 (`@ai-sdk/openai`, `@ai-sdk/anthropic`, `@ai-sdk/google`).
+-   `OPENAI_API_KEY`: OpenAI API key
 
 ------------------------------------------------------------------------
 

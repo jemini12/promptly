@@ -270,15 +270,18 @@ model ChatMessage {
   id        String   @id @default(uuid()) @db.Uuid
   chatId    String   @map("chat_id") @db.VarChar(64)
   messageId String   @map("message_id") @db.VarChar(128)
+  seq       Int      @default(0) @map("seq")
   role      String
   content   String   @default("")
   message   Json     @map("message")
   redacted  Boolean  @default(false)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  messageCreatedAt DateTime @default(now()) @map("message_created_at") @db.Timestamptz(6)
 
   chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
   @@unique([chatId, messageId], map: "uniq_chat_messages_chat_id_message_id")
   @@index([chatId, createdAt], map: "idx_chat_messages_chat_id_created_at")
+  @@index([chatId, seq], map: "idx_chat_messages_chat_id_seq")
   @@map("chat_messages")
 }

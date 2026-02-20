@@ -1,6 +1,6 @@
-# Job Builder Chat
+# Create with Chat
 
-`/chat` is an authenticated, chat-based job creation flow.
+`/chat` is an authenticated, chat-based job creation flow ("Create with Chat").
 
 It uses the Vercel AI SDK UI message stream protocol (SSE) and supports tool calling to:
 
@@ -26,6 +26,8 @@ The client sends UI messages plus a stable `chatId`.
 }
 ```
 
+`persist=true` stores the transcript for recovery. Streaming render is the priority; persistence runs after the stream finishes.
+
 ## Tool calling loop
 
 The chat API must allow multiple steps so the model can:
@@ -45,12 +47,15 @@ The client redirects to:
 
 ## Persistence
 
-When `persist=true`, the API stores chat messages in:
+When `persist=true` and `chatId` is provided, the API stores chat messages in:
 
 - `chats` (keyed by `id=chatId`, scoped to `user_id`)
-- `chat_messages` (unique by `(chat_id, message_id)`)
+- `chat_messages` (unique by `(chat_id, message_id)`, ordered by `seq`)
 
-Migration: `prisma/migrations/20260218160319_chat_persistence/migration.sql`
+Migrations:
+
+- `prisma/migrations/20260218160319_chat_persistence/migration.sql`
+- `prisma/migrations/20260220021349_chat_message_seq/migration.sql`
 
 Apply locally:
 

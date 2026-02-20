@@ -26,6 +26,20 @@ body {
   min-height: 100vh;
 }
 
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 ::selection {
   background: #e4e4e7;
   color: #18181b;
@@ -34,8 +48,12 @@ body {
 input,
 textarea,
 select,
-button {
+select {
   font: inherit;
+}
+
+button {
+  font-family: inherit;
 }
 
 @layer components {
@@ -91,10 +109,9 @@ button {
 
   .input-base:focus {
     outline: none;
-    border-color: #18181b;
-    box-shadow: 0 0 0 1px #18181b;
-    /* Sharp focus ring */
-    transform: translateY(-0.5px);
+    border-color: #e4e4e7;
+    box-shadow: none;
+    transform: none;
   }
 
   .status-pill {

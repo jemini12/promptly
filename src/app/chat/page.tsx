@@ -6,8 +6,8 @@ import { SiteNav } from "@/components/site-nav";
 import { JobBuilderChatClient } from "@/components/chat/job-builder-chat-client";
 
 export const metadata: Metadata = {
-  title: "Job Builder",
-  description: "Chat to create a new job.",
+  title: "Create with Chat",
+  description: "Create a new scheduled job with chat.",
 };
 
 export default async function ChatPage() {

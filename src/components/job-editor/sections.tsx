@@ -195,14 +195,14 @@ export function JobOptionsSection() {
             : [];
         const list = Array.isArray(listRaw)
           ? listRaw
-              .map((m) => {
-                if (!m || typeof m !== "object") return null;
-                const id = (m as { id?: unknown }).id;
-                const name = (m as { name?: unknown }).name;
-                if (typeof id !== "string" || !id.trim()) return null;
-                return { id, name: typeof name === "string" && name.trim() ? name : id };
-              })
-              .filter((m): m is { id: string; name: string } => Boolean(m))
+            .map((m) => {
+              if (!m || typeof m !== "object") return null;
+              const id = (m as { id?: unknown }).id;
+              const name = (m as { name?: unknown }).name;
+              if (typeof id !== "string" || !id.trim()) return null;
+              return { id, name: typeof name === "string" && name.trim() ? name : id };
+            })
+            .filter((m): m is { id: string; name: string } => Boolean(m))
           : [];
         if (!cancelled) {
           setModels(list);
@@ -265,14 +265,26 @@ export function JobOptionsSection() {
           />
           {uiText.jobEditor.options.useWebSearch}
         </label>
-        <label className="inline-flex items-center gap-2 text-sm text-zinc-900">
-          <input
-            type="checkbox"
-            checked={state.enabled}
-            onChange={(event) => setState((prev) => ({ ...prev, enabled: event.target.checked }))}
-          />
-          {uiText.jobEditor.options.keepEnabled}
-        </label>
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3">
+          <label className="text-sm font-medium text-zinc-900" htmlFor="job-enabled-toggle">
+            {uiText.jobEditor.options.keepEnabled}
+          </label>
+          <button
+            type="button"
+            id="job-enabled-toggle"
+            role="switch"
+            aria-checked={state.enabled}
+            onClick={() => setState((prev) => ({ ...prev, enabled: !prev.enabled }))}
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-zinc-600 focus:ring-offset-2 ${state.enabled ? "bg-zinc-900" : "bg-zinc-300"
+              }`}
+          >
+            <span className="sr-only">Toggle enabled state</span>
+            <span
+              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${state.enabled ? "translate-x-5" : "translate-x-0"
+                }`}
+            />
+          </button>
+        </div>
       </div>
     </section>
   );
@@ -588,15 +600,15 @@ export function JobPreviewSection() {
 
       const citations = Array.isArray(data.citations)
         ? data.citations.reduce(
-            (acc, c) => {
-              const url = typeof c?.url === "string" ? c.url : "";
-              if (!url) return acc;
-              const title = typeof c?.title === "string" && c.title.trim() ? c.title : undefined;
-              acc.push(title ? { url, title } : { url });
-              return acc;
-            },
-            [] as Array<{ url: string; title?: string }>,
-          )
+          (acc, c) => {
+            const url = typeof c?.url === "string" ? c.url : "";
+            if (!url) return acc;
+            const title = typeof c?.title === "string" && c.title.trim() ? c.title : undefined;
+            acc.push(title ? { url, title } : { url });
+            return acc;
+          },
+          [] as Array<{ url: string; title?: string }>,
+        )
         : [];
 
       setState((prev) => ({
@@ -656,7 +668,7 @@ export function JobPreviewSection() {
         </label>
       </div>
       <pre
-        className="mt-3 min-h-24 max-h-80 overflow-auto whitespace-pre-wrap rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700"
+        className="mt-3 min-h-16 max-h-60 overflow-auto whitespace-pre-wrap rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700 sm:min-h-24 sm:max-h-80"
         aria-live="polite"
       >
         {state.preview.status === "success"

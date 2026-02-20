@@ -88,23 +88,23 @@ function JobActionsSection({ jobId }: { jobId?: string }) {
   const validationMessage = getSaveValidationMessage(state);
   const canSave = !validationMessage && !saving && !deleting;
 
-    async function save() {
-      setSaving(true);
-      setError(null);
-      const body = {
-        name: state.name,
-        template: state.prompt,
-        variables: state.variables,
-        useWebSearch: state.useWebSearch,
-        llmModel: state.llmModel,
-        webSearchMode: state.webSearchMode,
-        scheduleType: state.scheduleType,
-        scheduleTime: state.scheduleType === "cron" ? "00:00" : state.time,
-        scheduleDayOfWeek: state.dayOfWeek,
-        scheduleCron: state.cron,
-        channel: state.channel,
-        enabled: state.enabled,
-      };
+  async function save() {
+    setSaving(true);
+    setError(null);
+    const body = {
+      name: state.name,
+      template: state.prompt,
+      variables: state.variables,
+      useWebSearch: state.useWebSearch,
+      llmModel: state.llmModel,
+      webSearchMode: state.webSearchMode,
+      scheduleType: state.scheduleType,
+      scheduleTime: state.scheduleType === "cron" ? "00:00" : state.time,
+      scheduleDayOfWeek: state.dayOfWeek,
+      scheduleCron: state.cron,
+      channel: state.channel,
+      enabled: state.enabled,
+    };
 
     const endpoint = jobId ? `/api/jobs/${jobId}` : "/api/jobs";
     const method = jobId ? "PUT" : "POST";
@@ -164,14 +164,14 @@ function JobActionsSection({ jobId }: { jobId?: string }) {
         <h3 className="text-sm font-medium text-zinc-900">{uiText.jobEditor.actions.title}</h3>
         <p className="mt-1 text-xs text-zinc-500">{uiText.jobEditor.actions.description}</p>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <Button
           type="button"
           onClick={save}
           variant="primary"
           size="md"
           loading={saving}
-          className="shadow-sm"
+          className="w-full shadow-sm sm:w-auto"
           disabled={!canSave}
         >
           {saving ? uiText.jobEditor.actions.saving : uiText.jobEditor.actions.save}
@@ -183,6 +183,7 @@ function JobActionsSection({ jobId }: { jobId?: string }) {
             variant="danger"
             size="md"
             loading={deleting}
+            className="w-full sm:w-auto"
             disabled={saving || deleting}
           >
             {deleting ? uiText.jobEditor.actions.deleting : uiText.jobEditor.actions.delete}
@@ -197,7 +198,7 @@ function JobActionsSection({ jobId }: { jobId?: string }) {
 
 function JobEditorBody({ jobId }: { jobId?: string }) {
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 py-10">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 py-8 sm:max-w-3xl sm:py-10">
       <section className="surface-card bg-zinc-50/70">
         <h1 className="text-xl font-semibold text-zinc-900">{jobId ? uiText.jobEditor.page.editTitle : uiText.jobEditor.page.createTitle}</h1>
         <p className="mt-1 text-sm text-zinc-600">

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
@@ -7,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { SiteNav } from "@/components/site-nav";
 import { LinkButton } from "@/components/ui/link-button";
 import { LocalTime } from "@/components/ui/local-time";
+import { JobCardActions } from "@/components/ui/job-card-actions";
 import { uiText } from "@/content/ui-text";
 
 
@@ -48,7 +48,7 @@ export default async function DashboardPage() {
     <main className="page-shell">
       <SiteNav signedIn />
       <section className="content-shell py-10">
-        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-zinc-900">{uiText.dashboard.title}</h1>
             <p className="text-sm text-zinc-500">{uiText.dashboard.description}</p>
@@ -56,30 +56,28 @@ export default async function DashboardPage() {
               {uiText.dashboard.totalJobs(jobs.length)}
             </p>
           </div>
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <LinkButton
-                href="/jobs/new"
-                variant="primary"
-                size="sm"
-                className="gap-2"
-              >
-                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                </svg>
-                {uiText.dashboard.createJob}
-              </LinkButton>
-              <LinkButton href="/chat" variant="secondary" size="sm" className="gap-2">
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M21 15a4 4 0 01-4 4H8l-5 3V7a4 4 0 014-4h10a4 4 0 014 4v8z"
-                  />
-                </svg>
-                {uiText.dashboard.createWithChat}
-              </LinkButton>
-            </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <LinkButton
+              href="/jobs/new"
+              variant="primary"
+              size="sm"
+              className="w-full gap-2 justify-center sm:w-auto"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              {uiText.dashboard.createJob}
+            </LinkButton>
+            <LinkButton href="/chat" variant="secondary" size="sm" className="w-full gap-2 justify-center sm:w-auto">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M21 15a4 4 0 01-4 4H8l-5 3V7a4 4 0 014-4h10a4 4 0 014 4v8z"
+                />
+              </svg>
+              {uiText.dashboard.createWithChat}
+            </LinkButton>
           </div>
         </div>
 
@@ -112,35 +110,20 @@ export default async function DashboardPage() {
                       : "status-pill status-pill-neutral"
                   : "status-pill status-pill-neutral";
                 return (
-                  <li key={job.id} className="rounded-xl border border-zinc-200 bg-white p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <h3 className="text-sm font-semibold text-zinc-900">{job.name}</h3>
-                        <p className="text-xs text-zinc-500">
-                          {uiText.dashboard.status.nextRun} <LocalTime date={job.nextRunAt} /> · {job.enabled ? uiText.dashboard.status.enabled : uiText.dashboard.status.disabled}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1 rounded-lg border border-zinc-200 bg-zinc-50 p-1">
-                        <Link
-                          href={`/jobs/${job.id}/edit`}
-                          className="inline-flex items-center justify-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
-                        >
-                          {uiText.dashboard.actions.edit}
-                        </Link>
-                        <Link
-                          href={`/jobs/${job.id}/history`}
-                          className="inline-flex items-center justify-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
-                        >
-                          {uiText.dashboard.actions.history}
-                        </Link>
-                      </div>
+                  <li key={job.id} className="relative rounded-xl border border-zinc-200 bg-white p-4 pr-10 sm:flex sm:items-center sm:justify-between sm:gap-4 sm:pr-4">
+                    <div>
+                      <h3 className="text-sm font-semibold text-zinc-900">{job.name}</h3>
+                      <p className="mt-0.5 text-xs text-zinc-500">
+                        {uiText.dashboard.status.nextRun} <LocalTime date={job.nextRunAt} /> · {job.enabled ? uiText.dashboard.status.enabled : uiText.dashboard.status.disabled}
+                      </p>
+                      {latest ? (
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+                          <span className={latestStatusClass}>{latest.status}</span>
+                          <p>{uiText.dashboard.status.lastRunAt} <LocalTime date={latest.runAt} /></p>
+                        </div>
+                      ) : null}
                     </div>
-                    {latest ? (
-                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                        <span className={latestStatusClass}>{latest.status}</span>
-                        <p>{uiText.dashboard.status.lastRunAt} <LocalTime date={latest.runAt} /></p>
-                      </div>
-                    ) : null}
+                    <JobCardActions jobId={job.id} />
                   </li>
                 );
               })}

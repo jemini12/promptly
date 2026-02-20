@@ -217,7 +217,7 @@ export const uiText = {
       modelLabel: "Model",
       modelHelp: "OpenAI model id (e.g. gpt-5-mini).",
       useWebSearch: "Use web search",
-      keepEnabled: "Keep this job enabled after save",
+      keepEnabled: "Enabled",
     },
     schedule: {
       title: "Schedule",

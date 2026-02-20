@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { format } from "date-fns";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/prisma";
 import { SiteNav } from "@/components/site-nav";
 import { LinkButton } from "@/components/ui/link-button";
+import { LocalTime } from "@/components/ui/local-time";
 import { uiText } from "@/content/ui-text";
 
 
@@ -117,7 +117,7 @@ export default async function DashboardPage() {
                       <div>
                         <h3 className="text-sm font-semibold text-zinc-900">{job.name}</h3>
                         <p className="text-xs text-zinc-500">
-                          {uiText.dashboard.status.nextRun} {format(job.nextRunAt, "PPp")} · {job.enabled ? uiText.dashboard.status.enabled : uiText.dashboard.status.disabled}
+                          {uiText.dashboard.status.nextRun} <LocalTime date={job.nextRunAt} /> · {job.enabled ? uiText.dashboard.status.enabled : uiText.dashboard.status.disabled}
                         </p>
                       </div>
                       <div className="flex items-center gap-1 rounded-lg border border-zinc-200 bg-zinc-50 p-1">
@@ -138,7 +138,7 @@ export default async function DashboardPage() {
                     {latest ? (
                       <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                         <span className={latestStatusClass}>{latest.status}</span>
-                        <p>{uiText.dashboard.status.lastRunAt} {format(latest.runAt, "PPp")}</p>
+                        <p>{uiText.dashboard.status.lastRunAt} <LocalTime date={latest.runAt} /></p>
                       </div>
                     ) : null}
                   </li>

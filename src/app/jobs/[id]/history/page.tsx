@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { format } from "date-fns";
 import { notFound } from "next/navigation";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/prisma";
 import { SiteNav } from "@/components/site-nav";
+import { LocalTime } from "@/components/ui/local-time";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -72,7 +72,7 @@ export default async function JobHistoryPage({ params }: Params) {
                       {history.status}
                     </span>
                     {usedWebSearch ? <span className="status-pill status-pill-neutral">web</span> : null}
-                    <p>{format(history.runAt, "PPp")}</p>
+                    <p><LocalTime date={history.runAt} /></p>
                   </div>
                   {history.errorMessage ? <p className="mt-1 text-xs text-zinc-500">{history.errorMessage}</p> : null}
                   {history.outputPreview ? (

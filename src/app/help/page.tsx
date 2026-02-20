@@ -51,6 +51,15 @@ export default async function HelpPage() {
           </section>
 
           <section className="surface-card">
+            <h2 className="text-sm font-semibold text-zinc-900">{uiText.help.templatesAndVariables.title}</h2>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-zinc-700">
+              {uiText.help.templatesAndVariables.items.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="surface-card">
             <h2 className="text-sm font-semibold text-zinc-900">{uiText.help.channelSetup.title}</h2>
             <ul className="mt-2 space-y-2 text-sm text-zinc-700">
               {uiText.help.channelSetup.items.map((item) => (
@@ -91,9 +100,27 @@ export default async function HelpPage() {
           </section>
 
           <section className="surface-card">
-            <h2 className="text-sm font-semibold text-zinc-900">{uiText.help.issues.title}</h2>
+            <h2 className="text-sm font-semibold text-zinc-900">{uiText.help.webSearch.title}</h2>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-zinc-700">
-              {uiText.help.issues.items.map((item) => (
+              {uiText.help.webSearch.items.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="surface-card">
+            <h2 className="text-sm font-semibold text-zinc-900">{uiText.help.runHistory.title}</h2>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-zinc-700">
+              {uiText.help.runHistory.items.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="surface-card">
+            <h2 className="text-sm font-semibold text-zinc-900">{uiText.help.support.title}</h2>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-zinc-700">
+              {uiText.help.support.items.map((item) => (
                 <li key={item}>{item}</li>
               ))}
             </ul>

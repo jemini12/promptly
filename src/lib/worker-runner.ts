@@ -56,7 +56,7 @@ async function lockNextDueJob() {
       FROM jobs
       WHERE enabled = true
         AND next_run_at <= now()
-        AND (locked_at IS NULL OR locked_at < now() - make_interval(mins => ${stale}))
+        AND (locked_at IS NULL OR locked_at < now() - make_interval(mins => ${stale}::int))
       ORDER BY next_run_at
       LIMIT 1
       FOR UPDATE SKIP LOCKED

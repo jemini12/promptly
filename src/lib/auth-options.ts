@@ -1,7 +1,5 @@
 import type { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
-import GitHubProvider from "next-auth/providers/github";
-import DiscordProvider from "next-auth/providers/discord";
 import { prisma } from "@/lib/prisma";
 
 export const authOptions: NextAuthOptions = {
@@ -9,8 +7,6 @@ export const authOptions: NextAuthOptions = {
   pages: { signIn: "/signin" },
   providers: [
     GoogleProvider({ clientId: process.env.AUTH_GOOGLE_ID ?? "google", clientSecret: process.env.AUTH_GOOGLE_SECRET ?? "google" }),
-    GitHubProvider({ clientId: process.env.AUTH_GITHUB_ID ?? "github", clientSecret: process.env.AUTH_GITHUB_SECRET ?? "github" }),
-    DiscordProvider({ clientId: process.env.AUTH_DISCORD_ID ?? "discord", clientSecret: process.env.AUTH_DISCORD_SECRET ?? "discord" }),
   ],
   callbacks: {
     async signIn({ account, user }) {
@@ -26,7 +22,7 @@ export const authOptions: NextAuthOptions = {
       await prisma.user.upsert({
         where: {
           provider_providerUserId: {
-            provider: account.provider as "google" | "github" | "discord",
+            provider: account.provider as "google",
             providerUserId,
           },
         },
@@ -52,7 +48,7 @@ export const authOptions: NextAuthOptions = {
         const dbUser = await prisma.user.findUnique({
           where: {
             provider_providerUserId: {
-              provider: account.provider as "google" | "github" | "discord",
+              provider: account.provider as "google",
               providerUserId,
             },
           },

@@ -61,53 +61,93 @@ export const uiText = {
   },
   help: {
     title: "Help",
-    description: "Setup steps, channel requirements, and troubleshooting for reliable scheduled runs.",
+    description:
+      "Getting started, templates + variables, delivery channels, and production troubleshooting for reliable scheduled runs.",
     cta: {
       createJob: "Create Job",
       viewDashboard: "View Dashboard",
     },
     quickStart: {
       title: "Quick start",
-      steps: ["Create a new job.", "Write your prompt and run preview.", "Set schedule and channel, then save."],
+      steps: [
+        "Sign in and create a job (or use Create with Chat from the Dashboard).",
+        "Write a prompt template and optionally add Variables (JSON).",
+        "Run Preview and (optionally) enable test-send to validate delivery.",
+        "Pick a schedule (daily/weekly/cron), choose a channel, then Save Job.",
+        "Monitor Run History for status, errors, and Sources when web search is enabled.",
+      ],
+    },
+    templatesAndVariables: {
+      title: "Templates and variables",
+      items: [
+        "Use placeholders like {{company}} inside your prompt template.",
+        "Variables must be a JSON object with string values (e.g. {\"company\":\"Acme\"}).",
+        "Built-ins: {{now_iso}}, {{date}}, {{time}}, {{timezone}}.",
+        "Unknown placeholders are left as-is, which helps catch typos.",
+      ],
+    },
+    preview: {
+      title: "Preview and test-send",
+      description:
+        "Preview runs the prompt immediately. Enable test-send to send preview output to the selected channel before saving changes.",
     },
     channelSetup: {
       title: "Channel setup",
       items: [
         "Discord: provide a webhook URL.",
         "Telegram: provide a bot token and chat ID.",
-        "Custom webhook: provide a URL, HTTP method, and optional headers/payload JSON.",
+        "Custom webhook: provide a URL and method. Headers JSON is optional. Payload JSON is optional.",
       ],
     },
     customWebhook: {
       title: "Custom webhook",
       description:
-        "Use Custom Webhook to integrate with any endpoint. Headers and payload are stored as JSON strings and must be valid JSON.",
+        "If Payload is empty, Promptloop sends a stable default JSON object. If you provide Payload, it will be sent as-is (must be valid JSON).",
       examples: {
-        headers: '{"Authorization":"Bearer <token>","X-Job":"promptloop"}',
-        payload: '{"content":"Hello from Promptloop"}',
+        headers: '{"Authorization":"Bearer <token>"}',
+        payload: `{
+  "title": "[Job Name] 2026-02-20 09:00",
+  "body": "<model output>",
+  "content": "<full message>",
+  "usedWebSearch": false,
+  "citations": [{ "url": "https://example.com", "title": "Example" }],
+  "meta": { "jobId": "<id>", "runHistoryId": "<id>" }
+}`,
       },
       notes: [
         "If your endpoint expects JSON, include a Content-Type header (often `application/json`).",
+        "For GET requests, no request body is sent (payload is ignored).",
         "Use Preview with test-send enabled to validate delivery before saving.",
       ],
     },
-    preview: {
-      title: "Preview and test-send",
-      description: "Run preview to validate output. Enable test-send to send preview output to the selected channel before saving.",
-    },
-    issues: {
-      title: "Common issues",
+    webSearch: {
+      title: "Web search (optional)",
       items: [
-        "Unauthorized preview: sign in again and use the same host (`localhost`).",
-        "Delivery error: verify Discord/Telegram/webhook configuration and ensure webhook headers/payload JSON is valid.",
-        "No scheduled sends: check job is enabled and the Vercel Cron endpoint is being invoked.",
+        "Turn on web search only when you need fresh facts or live sources.",
+        "When web search is enabled, runs include Sources links (and may take longer).",
+        "If web search is enabled but no sources are found, the run fails so you can adjust the prompt.",
+      ],
+    },
+    runHistory: {
+      title: "Run history",
+      items: [
+        "Run History shows the latest executions with status and a short preview of output.",
+        "Failures include a short error message to help you fix prompts, schedules, or channel settings.",
+        "Web-search runs show Sources so you can audit where facts came from.",
+      ],
+    },
+    support: {
+      title: "Need help?",
+      items: [
+        "Start with Run History: it shows the latest error messages and (when enabled) Sources.",
+        "For webhook issues, inspect your endpoint logs and validate the request body/headers.",
+        "If you are self-hosting, check server logs for /api/cron/run-jobs and delivery errors.",
       ],
     },
   },
   signIn: {
     page: {
       title: "Sign in",
-      description: "Choose a social provider to access your scheduled jobs.",
     },
     error: "Sign in failed. Please try again.",
     pending: "Preparing provider redirect...",
@@ -115,14 +155,6 @@ export const uiText = {
       google: {
         continue: "Continue with Google",
         redirecting: "Redirecting to Google...",
-      },
-      github: {
-        continue: "Continue with GitHub",
-        redirecting: "Redirecting to GitHub...",
-      },
-      discord: {
-        continue: "Continue with Discord",
-        redirecting: "Redirecting to Discord...",
       },
     },
   },
@@ -159,8 +191,8 @@ export const uiText = {
       examplePrompt: "Summarize top AI news in 5 bullets with one contrarian insight.",
       variablesLabel: "Variables (JSON)",
       variablesHelp: "Optional. Use {{var_name}} placeholders in the prompt template.",
-        writer: {
-          title: "Prompt Writer",
+      writer: {
+        title: "Prompt Writer",
         templateAppliedHint: "Template is applied to prompt.",
         templateNotAppliedHint: "This job uses a custom prompt. Templates will not overwrite unless you apply.",
         inputsLabel: "Inputs",
@@ -171,15 +203,15 @@ export const uiText = {
         applyTemplateNow: "Apply template",
         showTemplatePreview: "Show template preview",
         reviewLabel: "Review",
-          renderedPromptLabel: "Rendered prompt",
-          advancedLabel: "Advanced",
-          advancedSummary: "Edit prompt",
-          enhance: "Enhance",
-          enhancing: "Enhancing...",
-          strongerRewrite: "Allow stronger rewrite",
-          enhanceFailed: "Enhancement failed.",
-        },
+        renderedPromptLabel: "Rendered prompt",
+        advancedLabel: "Advanced",
+        advancedSummary: "Edit prompt",
+        enhance: "Enhance",
+        enhancing: "Enhancing...",
+        strongerRewrite: "Allow stronger rewrite",
+        enhanceFailed: "Enhancement failed.",
       },
+    },
     options: {
       title: "Options",
       modelLabel: "Model",

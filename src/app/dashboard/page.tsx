@@ -62,14 +62,14 @@ export default async function DashboardPage() {
                 href="/jobs/new"
                 variant="primary"
                 size="sm"
-                className="gap-2 shadow-sm"
+                className="gap-2"
               >
                 <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                 </svg>
                 {uiText.dashboard.createJob}
               </LinkButton>
-              <LinkButton href="/chat" variant="secondary" size="sm" className="gap-2 shadow-sm">
+              <LinkButton href="/chat" variant="secondary" size="sm" className="gap-2">
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                   <path
                     strokeLinecap="round"

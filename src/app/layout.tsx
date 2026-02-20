@@ -19,6 +19,9 @@ export const metadata: Metadata = {
   },
   description: "Schedule AI prompts, preview output, and deliver automated results to Discord, Telegram, or a custom webhook.",
   applicationName: "Promptloop",
+  icons: {
+    icon: "/favicon.ico",
+  },
   keywords: ["AI automation", "prompt scheduler", "Discord", "Telegram", "webhook", "workflow"],
   openGraph: {
     title: "Promptloop",

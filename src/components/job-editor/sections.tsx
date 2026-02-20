@@ -253,7 +253,7 @@ export function JobOptionsSection() {
             value={state.llmModel}
             onChange={(event) => setState((prev) => ({ ...prev, llmModel: event.target.value }))}
             className="input-base h-10"
-            placeholder="openai/gpt-5-mini"
+            placeholder="gpt-5-mini"
           />
         )}
         <p className="text-xs text-zinc-500">{uiText.jobEditor.options.modelHelp}</p>
@@ -265,7 +265,6 @@ export function JobOptionsSection() {
           />
           {uiText.jobEditor.options.useWebSearch}
         </label>
-        {state.useWebSearch ? <p className="text-xs text-zinc-500">{uiText.jobEditor.options.webSearchNativeHelp}</p> : null}
         <label className="inline-flex items-center gap-2 text-sm text-zinc-900">
           <input
             type="checkbox"
@@ -521,9 +520,6 @@ export function JobChannelSection() {
 export function JobPreviewSection() {
   const { state, setState } = useJobForm();
   const [testSend, setTestSend] = useState(false);
-  const [runAsScheduled, setRunAsScheduled] = useState(false);
-  const [runAt, setRunAt] = useState("");
-  const [timezone, setTimezone] = useState("");
 
   const previewAbortRef = useRef<AbortController | null>(null);
   const previewSeqRef = useRef(0);
@@ -552,8 +548,6 @@ export function JobPreviewSection() {
         llmModel: string;
         webSearchMode: typeof state.webSearchMode;
         testSend: boolean;
-        nowIso?: string;
-        timezone?: string;
         channel?: typeof state.channel;
       } = {
         name: state.name || uiText.jobEditor.preview.defaultName,
@@ -564,16 +558,6 @@ export function JobPreviewSection() {
         webSearchMode: state.webSearchMode,
         testSend,
       };
-
-      if (runAsScheduled && runAt) {
-        const date = new Date(runAt);
-        if (!Number.isNaN(date.getTime())) {
-          payload.nowIso = date.toISOString();
-        }
-      }
-      if (runAsScheduled && timezone.trim()) {
-        payload.timezone = timezone.trim();
-      }
 
       if (testSend) {
         payload.channel = state.channel;
@@ -670,28 +654,6 @@ export function JobPreviewSection() {
           <input type="checkbox" checked={testSend} onChange={(event) => setTestSend(event.target.checked)} />
           <span>{uiText.jobEditor.preview.testSend}</span>
         </label>
-        <label className="flex items-center gap-2">
-          <input type="checkbox" checked={runAsScheduled} onChange={(event) => setRunAsScheduled(event.target.checked)} />
-          <span>Run as scheduled</span>
-        </label>
-        {runAsScheduled ? (
-          <div className="grid gap-2 sm:grid-cols-2">
-            <input
-              type="datetime-local"
-              value={runAt}
-              onChange={(event) => setRunAt(event.target.value)}
-              className="input-base"
-              aria-label="Run time"
-            />
-            <input
-              value={timezone}
-              onChange={(event) => setTimezone(event.target.value)}
-              className="input-base"
-              placeholder="Timezone (optional)"
-              aria-label="Timezone"
-            />
-          </div>
-        ) : null}
       </div>
       <pre
         className="mt-3 min-h-24 max-h-80 overflow-auto whitespace-pre-wrap rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700"

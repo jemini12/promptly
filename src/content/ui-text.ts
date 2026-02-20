@@ -42,7 +42,7 @@ export const uiText = {
     title: "Dashboard",
     description: "Manage schedules and monitor the latest run results.",
     createJob: "Create Job",
-    createWithChat: "Create with chat",
+    createWithChat: "Create with Chat",
     noJobsTitle: "No jobs yet",
     noJobsDescription: "Create your first scheduled prompt to start automation.",
     actions: {
@@ -183,9 +183,8 @@ export const uiText = {
     options: {
       title: "Options",
       modelLabel: "Model",
-      modelHelp: "AI Gateway model id (creator/model).",
+      modelHelp: "OpenAI model id (e.g. gpt-5-mini).",
       useWebSearch: "Use web search",
-      webSearchNativeHelp: "Uses the selected model's native web search tool (no Perplexity/Parallel).",
       keepEnabled: "Keep this job enabled after save",
     },
     schedule: {

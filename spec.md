@@ -31,12 +31,14 @@
 ### 1.2 제외
 
 -   팀/공유
--   과금/결제(Stripe 등)
+-   과금/결제 UI 완성도(인보이스/세금/환불 등 고급 기능)
 -   체인 프롬프트/에이전트
 -   외부 데이터 소스 연동
 -   고급 리포트/분석
 
 > 주: 결제는 제외하되, Free/Pro **플랜 필드와 제한(잡 개수/일일 실행)** 은 운영을 위해 내부적으로 존재할 수 있다.
+
+현재 구현: Stripe Subscriptions 기반으로 `free`/`pro` 플랜을 업데이트할 수 있다.
 
 ------------------------------------------------------------------------
 
@@ -309,6 +311,12 @@ VALUES ($1, $2, now(), $3, $4, $5);
 -   GET /api/jobs
 -   POST /api/jobs/{id}/preview (미리 실행)
 -   POST /api/preview (임시 Job 데이터로 미리 실행)
+
+Billing:
+
+-   POST /api/billing/checkout
+-   POST /api/billing/portal
+-   POST /api/billing/webhook
 
 Auth: - OAuth 로그인 (Google, GitHub, Discord) - 자체 비밀번호
 없음 - 로그인 후 세션 발급

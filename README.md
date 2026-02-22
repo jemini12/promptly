@@ -27,6 +27,12 @@ Required values:
 - `CHANNEL_SECRET_KEY` (recommended; if omitted, `NEXTAUTH_SECRET` is used)
 - Optional: `DAILY_RUN_LIMIT` (global fallback; per-user override available via Admin)
 - Optional: `ADMIN_EMAILS` (comma-separated; bootstrap admin access)
+- Billing (Stripe):
+  - `APP_URL` (or `NEXTAUTH_URL`)
+  - `STRIPE_SECRET_KEY`
+  - `STRIPE_WEBHOOK_SECRET`
+  - `STRIPE_PRICE_PRO_MONTHLY_ID`
+  - `STRIPE_PRICE_PRO_YEARLY_ID`
 
 ## Local Run
 
@@ -78,6 +84,7 @@ curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/run-
 
 - `/` dashboard
 - `/chat` job builder (chat)
+- `/pricing` pricing + upgrade
 - `/jobs/new` job editor
 - `/jobs/[id]/edit` job editor (update/delete)
 - `/jobs/[id]/history` run history
@@ -115,3 +122,5 @@ npx prisma migrate dev
 ```
 
 Docs: `docs/job-builder-chat.md`
+
+Billing: `docs/billing.md`

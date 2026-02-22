@@ -25,7 +25,8 @@ Required values:
   - `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`
   - `AUTH_DISCORD_ID`, `AUTH_DISCORD_SECRET`
 - `CHANNEL_SECRET_KEY` (recommended; if omitted, `NEXTAUTH_SECRET` is used)
-- Optional: `DAILY_RUN_LIMIT`
+- Optional: `DAILY_RUN_LIMIT` (global fallback; per-user override available via Admin)
+- Optional: `ADMIN_EMAILS` (comma-separated; bootstrap admin access)
 
 ## Local Run
 

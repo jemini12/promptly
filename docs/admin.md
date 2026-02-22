@@ -25,3 +25,8 @@ If `ADMIN_EMAILS` includes your account email, signing in will set your role to 
 - `User.role`: `user` | `admin`
 - `User.plan`: `free` | `pro`
 - `User.overrideEnabledJobsLimit`, `User.overrideTotalJobsLimit`, `User.overrideDailyRunLimit`: optional per-user overrides (nullable)
+
+## Notes
+
+- `User.plan` and override fields are used for server-side enforcement (job-count and daily run limits).
+- Limit errors can include a structured `{ code, meta }` in API responses.

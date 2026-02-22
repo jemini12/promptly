@@ -31,10 +31,12 @@
 ### 1.2 제외
 
 -   팀/공유
--   과금/결제
+-   과금/결제(Stripe 등)
 -   체인 프롬프트/에이전트
 -   외부 데이터 소스 연동
 -   고급 리포트/분석
+
+> 주: 결제는 제외하되, Free/Pro **플랜 필드와 제한(잡 개수/일일 실행)** 은 운영을 위해 내부적으로 존재할 수 있다.
 
 ------------------------------------------------------------------------
 
@@ -109,6 +111,11 @@ Acceptance Criteria:
 -   name TEXT NULL
 -   avatar_url TEXT NULL
 -   created_at TIMESTAMPTZ
+-   role TEXT (user\|admin)
+-   plan TEXT (free\|pro)
+-   override_enabled_jobs_limit INT NULL
+-   override_total_jobs_limit INT NULL
+-   override_daily_run_limit INT NULL
 
 Unique: (provider, provider_user_id)
 
@@ -426,9 +433,12 @@ Auth: - OAuth 로그인 (Google, GitHub, Discord) - 자체 비밀번호
 
 -   유저별 하루 실행 횟수 제한(남용 방지)
 -   미리 실행도 카운트 포함
+-   유저별 Job 제한(총 Job 수 / enabled Job 수)
 -   프롬프트 길이 제한
 -   실패 10회 연속 시 자동 비활성화
 -   오래된 락(10분 이상)은 자동 회수
+
+API 에러(선택): 제한에 걸린 경우 `{ error, code, meta }` 형태로 반환될 수 있다.
 
 ------------------------------------------------------------------------
 

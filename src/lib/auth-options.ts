@@ -1,6 +1,7 @@
 import type { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import { prisma } from "@/lib/prisma";
+import { isAdminEmail } from "@/lib/admin-allowlist";
 
 export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
@@ -19,6 +20,7 @@ export const authOptions: NextAuthOptions = {
         return false;
       }
 
+      const allowlistedAdmin = isAdminEmail(user.email);
       await prisma.user.upsert({
         where: {
           provider_providerUserId: {
@@ -30,6 +32,7 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           name: user.name,
           avatarUrl: user.image,
+          ...(allowlistedAdmin ? { role: "admin" as const } : {}),
         },
         create: {
           provider: account.provider as "google" | "github" | "discord",
@@ -37,6 +40,7 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           name: user.name,
           avatarUrl: user.image,
+          role: allowlistedAdmin ? "admin" : "user",
         },
       });
 

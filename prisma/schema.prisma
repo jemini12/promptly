@@ -52,6 +52,13 @@ enum RunStatus {
   @@map("run_status")
 }
 
+enum UserRole {
+  user
+  admin
+
+  @@map("user_role")
+}
+
 model User {
   id             String       @id @default(uuid()) @db.Uuid
   provider       AuthProvider
@@ -59,6 +66,7 @@ model User {
   email          String?
   name           String?
   avatarUrl      String?      @map("avatar_url")
+  role           UserRole     @default(user)
   createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   jobs           Job[]
   previewEvents  PreviewEvent[]

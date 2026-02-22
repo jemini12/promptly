@@ -12,6 +12,7 @@ import {
   JobScheduleSection,
 } from "@/components/job-editor/sections";
 import { Button } from "@/components/ui/button";
+import { LinkButton } from "@/components/ui/link-button";
 import { uiText } from "@/content/ui-text";
 import type { JobFormState } from "@/types/job-form";
 
@@ -85,12 +86,14 @@ function JobActionsSection({ jobId }: { jobId?: string }) {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showUpgrade, setShowUpgrade] = useState(false);
   const validationMessage = getSaveValidationMessage(state);
   const canSave = !validationMessage && !saving && !deleting;
 
   async function save() {
     setSaving(true);
     setError(null);
+    setShowUpgrade(false);
     const body = {
       name: state.name,
       template: state.prompt,
@@ -117,8 +120,11 @@ function JobActionsSection({ jobId }: { jobId?: string }) {
       });
 
       if (!response.ok) {
-        const data = (await response.json()) as { error?: string };
+        const data = (await response.json()) as { error?: string; code?: string };
         setError(data.error ?? uiText.jobEditor.actions.saveError);
+        if (data.code && String(data.code).startsWith("LIMIT_")) {
+          setShowUpgrade(true);
+        }
         return;
       }
 
@@ -192,6 +198,13 @@ function JobActionsSection({ jobId }: { jobId?: string }) {
       </div>
       {validationMessage ? <p className="mt-3 text-xs text-zinc-500">{validationMessage}</p> : null}
       {error ? <p className="mt-3 text-xs text-red-600" role="alert">{error}</p> : null}
+      {showUpgrade ? (
+        <div className="mt-3">
+          <LinkButton href="/pricing" variant="secondary" size="sm" className="w-full justify-center sm:w-auto">
+            View pricing / upgrade
+          </LinkButton>
+        </div>
+      ) : null}
     </section>
   );
 }

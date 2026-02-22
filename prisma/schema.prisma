@@ -59,6 +59,13 @@ enum UserRole {
   @@map("user_role")
 }
 
+enum UserPlan {
+  free
+  pro
+
+  @@map("user_plan")
+}
+
 model User {
   id             String       @id @default(uuid()) @db.Uuid
   provider       AuthProvider
@@ -67,6 +74,10 @@ model User {
   name           String?
   avatarUrl      String?      @map("avatar_url")
   role           UserRole     @default(user)
+  plan           UserPlan     @default(free)
+  overrideEnabledJobsLimit Int? @map("override_enabled_jobs_limit")
+  overrideTotalJobsLimit   Int? @map("override_total_jobs_limit")
+  overrideDailyRunLimit    Int? @map("override_daily_run_limit")
   createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   jobs           Job[]
   previewEvents  PreviewEvent[]

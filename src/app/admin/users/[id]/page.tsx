@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireAdminPageAccess } from "@/lib/admin-authz";
 import { RoleEditor } from "@/app/admin/users/[id]/role-editor";
+import { PlanEditor } from "@/app/admin/users/[id]/plan-editor";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,18 @@ export default async function AdminUserDetailPage({ params }: Params) {
 
   const user = await prisma.user.findUnique({
     where: { id },
-    select: { id: true, email: true, name: true, provider: true, createdAt: true, role: true },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      provider: true,
+      createdAt: true,
+      role: true,
+      plan: true,
+      overrideEnabledJobsLimit: true,
+      overrideTotalJobsLimit: true,
+      overrideDailyRunLimit: true,
+    },
   });
   if (!user) {
     return (
@@ -67,6 +79,16 @@ export default async function AdminUserDetailPage({ params }: Params) {
         </div>
 
         <RoleEditor userId={user.id} initialRole={user.role === "admin" ? "admin" : "user"} />
+
+        <PlanEditor
+          userId={user.id}
+          initialPlan={user.plan === "pro" ? "pro" : "free"}
+          initialOverrides={{
+            enabledJobsLimit: user.overrideEnabledJobsLimit,
+            totalJobsLimit: user.overrideTotalJobsLimit,
+            dailyRunLimit: user.overrideDailyRunLimit,
+          }}
+        />
 
         <h2 className="mt-8 text-sm font-semibold text-zinc-900">Jobs</h2>
         {jobs.length === 0 ? (

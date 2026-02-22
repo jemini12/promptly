@@ -16,6 +16,7 @@ type Row = {
   name: string | null;
   provider: string;
   role: string;
+  plan: string;
   createdAt: Date;
   totalJobs: number;
   enabledJobs: number;
@@ -27,7 +28,7 @@ export default async function AdminUsersPage() {
   const [users, totalByUser, enabledByUser] = await Promise.all([
     prisma.user.findMany({
       orderBy: { createdAt: "desc" },
-      select: { id: true, email: true, name: true, provider: true, createdAt: true, role: true },
+      select: { id: true, email: true, name: true, provider: true, createdAt: true, role: true, plan: true },
     }),
     prisma.job.groupBy({
       by: ["userId"],
@@ -47,6 +48,7 @@ export default async function AdminUsersPage() {
     ...u,
     provider: String(u.provider),
     role: String(u.role),
+    plan: String(u.plan),
     totalJobs: totalMap.get(u.id) ?? 0,
     enabledJobs: enabledMap.get(u.id) ?? 0,
   }));
@@ -74,6 +76,7 @@ export default async function AdminUsersPage() {
                 <th className="border-b border-zinc-200 px-3 py-2 font-medium">User</th>
                 <th className="border-b border-zinc-200 px-3 py-2 font-medium">Provider</th>
                 <th className="border-b border-zinc-200 px-3 py-2 font-medium">Role</th>
+                <th className="border-b border-zinc-200 px-3 py-2 font-medium">Plan</th>
                 <th className="border-b border-zinc-200 px-3 py-2 font-medium">Total jobs</th>
                 <th className="border-b border-zinc-200 px-3 py-2 font-medium">Enabled jobs</th>
                 <th className="border-b border-zinc-200 px-3 py-2 font-medium">Created</th>
@@ -92,6 +95,7 @@ export default async function AdminUsersPage() {
                   </td>
                   <td className="border-b border-zinc-100 px-3 py-2 text-zinc-700">{row.provider}</td>
                   <td className="border-b border-zinc-100 px-3 py-2 text-zinc-700">{row.role}</td>
+                  <td className="border-b border-zinc-100 px-3 py-2 text-zinc-700">{row.plan}</td>
                   <td className="border-b border-zinc-100 px-3 py-2 tabular-nums">{row.totalJobs}</td>
                   <td className="border-b border-zinc-100 px-3 py-2 tabular-nums">{row.enabledJobs}</td>
                   <td className="border-b border-zinc-100 px-3 py-2 text-zinc-700">{row.createdAt.toISOString().slice(0, 10)}</td>

@@ -1,10 +1,11 @@
 import { startOfDay } from "date-fns";
 import { prisma } from "@/lib/prisma";
-
-const DEFAULT_LIMIT = 50;
+import { getEntitlements } from "@/lib/entitlements";
+import { LimitError } from "@/lib/limit-errors";
 
 export async function enforceDailyRunLimit(userId: string) {
-  const limit = Number(process.env.DAILY_RUN_LIMIT ?? DEFAULT_LIMIT);
+  const entitlements = await getEntitlements(userId);
+  const limit = entitlements.limits.dailyRunLimit;
   const dayStart = startOfDay(new Date());
 
   const [runCount, previewCount] = await Promise.all([
@@ -23,6 +24,9 @@ export async function enforceDailyRunLimit(userId: string) {
   ]);
 
   if (runCount + previewCount >= limit) {
-    throw new Error(`Daily run limit exceeded (${limit})`);
+    throw new LimitError(`Daily run limit exceeded (${limit})`, "LIMIT_DAILY_RUNS", {
+      limit,
+      used: runCount + previewCount,
+    });
   }
 }

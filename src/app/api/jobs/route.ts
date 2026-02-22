@@ -6,6 +6,8 @@ import { jobUpsertSchema } from "@/lib/validation";
 import { computeNextRunAt } from "@/lib/schedule";
 import { toDbChannelConfig, toMaskedApiJob } from "@/lib/jobs";
 import { recordAudit } from "@/lib/audit";
+import { getEntitlements, getJobUsage } from "@/lib/entitlements";
+import { LimitError } from "@/lib/limit-errors";
 
 export async function GET() {
   try {
@@ -26,6 +28,20 @@ export async function POST(request: NextRequest) {
     const userId = await requireUserId();
     const payload = await request.json();
     const parsed = jobUpsertSchema.parse(payload);
+
+    const [entitlements, usage] = await Promise.all([getEntitlements(userId), getJobUsage(userId)]);
+    if (usage.totalJobs >= entitlements.limits.totalJobsLimit) {
+      throw new LimitError("Total job limit exceeded", "LIMIT_TOTAL_JOBS", {
+        limit: entitlements.limits.totalJobsLimit,
+        used: usage.totalJobs,
+      });
+    }
+    if (parsed.enabled && usage.enabledJobs >= entitlements.limits.enabledJobsLimit) {
+      throw new LimitError("Enabled job limit exceeded", "LIMIT_ENABLED_JOBS", {
+        limit: entitlements.limits.enabledJobsLimit,
+        used: usage.enabledJobs,
+      });
+    }
 
     const variables = parsed.variables ? (JSON.parse(parsed.variables || "{}") as Record<string, string>) : {};
 

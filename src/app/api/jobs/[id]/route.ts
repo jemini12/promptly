@@ -6,6 +6,8 @@ import { jobUpsertSchema } from "@/lib/validation";
 import { computeNextRunAt } from "@/lib/schedule";
 import { toDbChannelConfig, toMaskedApiJob } from "@/lib/jobs";
 import { recordAudit } from "@/lib/audit";
+import { getEntitlements, getJobUsage } from "@/lib/entitlements";
+import { LimitError } from "@/lib/limit-errors";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -18,9 +20,20 @@ export async function PUT(request: NextRequest, { params }: Params) {
 
     const variables = parsed.variables ? (JSON.parse(parsed.variables || "{}") as Record<string, string>) : {};
 
-    const exists = await prisma.job.findFirst({ where: { id, userId }, select: { id: true } });
+    const exists = await prisma.job.findFirst({ where: { id, userId }, select: { id: true, enabled: true } });
     if (!exists) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    const enabling = !exists.enabled && parsed.enabled;
+    if (enabling) {
+      const [entitlements, usage] = await Promise.all([getEntitlements(userId), getJobUsage(userId)]);
+      if (usage.enabledJobs >= entitlements.limits.enabledJobsLimit) {
+        throw new LimitError("Enabled job limit exceeded", "LIMIT_ENABLED_JOBS", {
+          limit: entitlements.limits.enabledJobsLimit,
+          used: usage.enabledJobs,
+        });
+      }
     }
 
     const { channelType, channelConfig } = toDbChannelConfig(parsed.channel);

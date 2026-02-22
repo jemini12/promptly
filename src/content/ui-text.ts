@@ -4,6 +4,7 @@ export const uiText = {
   },
   nav: {
     help: "Help",
+    pricing: "Pricing",
     dashboard: "Dashboard",
     signIn: "Sign in",
     signOut: "Sign out",

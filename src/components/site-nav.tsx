@@ -33,6 +33,13 @@ export function SiteNav({ signedIn }: { signedIn: boolean }) {
             >
               {uiText.nav.help}
             </Link>
+            <Link
+              href="/pricing"
+              className={navItemClass(isActivePath(pathname, "/pricing"))}
+              aria-current={isActivePath(pathname, "/pricing") ? "page" : undefined}
+            >
+              {uiText.nav.pricing}
+            </Link>
             {signedIn ? (
               <Link
                 href="/dashboard"

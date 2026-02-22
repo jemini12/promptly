@@ -8,6 +8,7 @@ import { LinkButton } from "@/components/ui/link-button";
 import { LocalTime } from "@/components/ui/local-time";
 import { JobCardActions } from "@/components/ui/job-card-actions";
 import { uiText } from "@/content/ui-text";
+import { PortalButton } from "@/components/billing/portal-button";
 
 
 export const dynamic = "force-dynamic";
@@ -32,6 +33,9 @@ export default async function DashboardPage() {
     redirect("/signin?callbackUrl=/dashboard");
   }
 
+  const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { plan: true } });
+  const plan = user?.plan === "pro" ? "pro" : "free";
+
   const jobs = await prisma.job.findMany({
     where: { userId: session.user.id },
     include: {
@@ -55,8 +59,12 @@ export default async function DashboardPage() {
             <p className="mt-2 inline-flex items-center rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs text-zinc-600">
               {uiText.dashboard.totalJobs(jobs.length)}
             </p>
+            <p className="mt-2 inline-flex items-center rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-xs text-zinc-700">
+              plan: {plan}
+            </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            {plan === "pro" ? <PortalButton /> : <LinkButton href="/pricing" variant="secondary" size="sm" className="w-full justify-center sm:w-auto">Upgrade</LinkButton>}
             <LinkButton
               href="/jobs/new"
               variant="primary"

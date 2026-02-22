@@ -78,6 +78,12 @@ model User {
   overrideEnabledJobsLimit Int? @map("override_enabled_jobs_limit")
   overrideTotalJobsLimit   Int? @map("override_total_jobs_limit")
   overrideDailyRunLimit    Int? @map("override_daily_run_limit")
+  stripeCustomerId        String?   @map("stripe_customer_id")
+  stripeSubscriptionId    String?   @map("stripe_subscription_id")
+  stripePriceId           String?   @map("stripe_price_id")
+  stripeStatus            String?   @map("stripe_status")
+  stripeCurrentPeriodEnd  DateTime? @map("stripe_current_period_end") @db.Timestamptz(6)
+  stripeCancelAtPeriodEnd Boolean   @default(false) @map("stripe_cancel_at_period_end")
   createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   jobs           Job[]
   previewEvents  PreviewEvent[]

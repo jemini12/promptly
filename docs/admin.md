@@ -19,3 +19,9 @@ If `ADMIN_EMAILS` includes your account email, signing in will set your role to 
 
 - `GET /api/admin/users` (admin-only)
 - `PATCH /api/admin/users/:id` (admin-only)
+
+## User fields used by admin
+
+- `User.role`: `user` | `admin`
+- `User.plan`: `free` | `pro`
+- `User.overrideEnabledJobsLimit`, `User.overrideTotalJobsLimit`, `User.overrideDailyRunLimit`: optional per-user overrides (nullable)

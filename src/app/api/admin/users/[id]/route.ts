@@ -18,7 +18,15 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     const before = await prisma.user.findUnique({
       where: { id },
-      select: { id: true, email: true, role: true },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        plan: true,
+        overrideEnabledJobsLimit: true,
+        overrideTotalJobsLimit: true,
+        overrideDailyRunLimit: true,
+      },
     });
     if (!before) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -28,8 +36,20 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       where: { id },
       data: {
         ...(parsed.role ? { role: parsed.role } : {}),
+        ...(parsed.plan ? { plan: parsed.plan } : {}),
+        ...(parsed.overrideEnabledJobsLimit !== undefined ? { overrideEnabledJobsLimit: parsed.overrideEnabledJobsLimit } : {}),
+        ...(parsed.overrideTotalJobsLimit !== undefined ? { overrideTotalJobsLimit: parsed.overrideTotalJobsLimit } : {}),
+        ...(parsed.overrideDailyRunLimit !== undefined ? { overrideDailyRunLimit: parsed.overrideDailyRunLimit } : {}),
       },
-      select: { id: true, email: true, role: true },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        plan: true,
+        overrideEnabledJobsLimit: true,
+        overrideTotalJobsLimit: true,
+        overrideDailyRunLimit: true,
+      },
     });
 
     await recordAudit({

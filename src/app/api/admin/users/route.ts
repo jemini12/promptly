@@ -12,7 +12,7 @@ export async function GET() {
     const [users, totalByUser, enabledByUser] = await Promise.all([
       prisma.user.findMany({
         orderBy: { createdAt: "desc" },
-        select: { id: true, email: true, name: true, provider: true, createdAt: true, role: true },
+        select: { id: true, email: true, name: true, provider: true, createdAt: true, role: true, plan: true },
       }),
       prisma.job.groupBy({
         by: ["userId"],
@@ -32,6 +32,7 @@ export async function GET() {
       ...u,
       provider: String(u.provider),
       role: String(u.role),
+      plan: String(u.plan),
       totalJobs: totalMap.get(u.id) ?? 0,
       enabledJobs: enabledMap.get(u.id) ?? 0,
     }));

@@ -2,6 +2,11 @@
 
 This repo uses Stripe Subscriptions to set `User.plan` to `pro` (no pay-as-you-go).
 
+Plan caps (defaults):
+
+- Free: 1 enabled job, 10 total jobs
+- Pro: 100 enabled jobs, 1000 total jobs
+
 ## Environment variables
 
 - `STRIPE_SECRET_KEY`

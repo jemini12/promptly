@@ -30,3 +30,9 @@ If `ADMIN_EMAILS` includes your account email, signing in will set your role to 
 
 - `User.plan` and override fields are used for server-side enforcement (job-count and daily run limits).
 - Limit errors can include a structured `{ code, meta }` in API responses.
+
+## Default plan caps
+
+- Free: 1 enabled job, 10 total jobs
+- Pro: 100 enabled jobs, 1000 total jobs
+- Daily run limit defaults to 50 unless overridden (admin override or `DAILY_RUN_LIMIT`).

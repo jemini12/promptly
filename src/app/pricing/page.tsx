@@ -67,9 +67,9 @@ export default async function PricingPage() {
           <PlanCard title="Pro" description="Higher limits and fewer guardrails.">
             <ul className="space-y-1 text-sm text-zinc-700">
               <li>
-                Up to 1000 enabled jobs (&quot;unlimited&quot; for normal use)
+                Up to 100 enabled jobs
               </li>
-              <li>Up to 10000 total jobs</li>
+              <li>Up to 1000 total jobs</li>
               <li>Daily run limit applies (higher with overrides)</li>
             </ul>
             <div className="mt-5 space-y-3">

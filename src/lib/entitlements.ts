@@ -20,8 +20,8 @@ const PLAN_DEFAULTS: Record<UserPlan, { enabledJobsLimit: number; totalJobsLimit
     dailyRunLimit: DEFAULT_DAILY_RUN_LIMIT,
   },
   pro: {
-    enabledJobsLimit: 1000,
-    totalJobsLimit: 10000,
+    enabledJobsLimit: 100,
+    totalJobsLimit: 1000,
     dailyRunLimit: DEFAULT_DAILY_RUN_LIMIT,
   },
 };

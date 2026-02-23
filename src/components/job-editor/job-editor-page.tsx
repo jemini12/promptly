@@ -212,12 +212,10 @@ function JobActionsSection({ jobId }: { jobId?: string }) {
 function JobEditorBody({ jobId }: { jobId?: string }) {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 py-8 sm:max-w-3xl sm:py-10">
-      <section className="surface-card bg-zinc-50/70">
+      <header>
         <h1 className="text-xl font-semibold text-zinc-900">{jobId ? uiText.jobEditor.page.editTitle : uiText.jobEditor.page.createTitle}</h1>
-        <p className="mt-1 text-sm text-zinc-600">
-          {uiText.jobEditor.page.description}
-        </p>
-      </section>
+        <p className="mt-1 text-sm text-zinc-600">{uiText.jobEditor.page.description}</p>
+      </header>
       <JobHeaderSection />
       <JobPromptSection />
       <JobOptionsSection />

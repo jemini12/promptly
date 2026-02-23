@@ -442,6 +442,12 @@ Auth: - OAuth 로그인 (Google, GitHub, Discord) - 자체 비밀번호
 -   유저별 하루 실행 횟수 제한(남용 방지)
 -   미리 실행도 카운트 포함
 -   유저별 Job 제한(총 Job 수 / enabled Job 수)
+
+기본 플랜 제한(관리자 override 및 환경변수로 변경 가능):
+
+-   Free: enabled Job 1개, total Job 10개
+-   Pro: enabled Job 100개, total Job 1000개
+
 -   프롬프트 길이 제한
 -   실패 10회 연속 시 자동 비활성화
 -   오래된 락(10분 이상)은 자동 회수

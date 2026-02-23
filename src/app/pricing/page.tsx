@@ -40,10 +40,9 @@ export default async function PricingPage() {
     <main className="page-shell">
       <SiteNav signedIn={signedIn} />
       <section className="content-shell py-12">
-        <section className="surface-card bg-zinc-50/70">
+        <header>
           <h1 className="text-3xl font-semibold text-zinc-900">Pricing</h1>
-          <p className="mt-2 text-sm text-zinc-600">Simple plans. No pay-as-you-go.</p>
-        </section>
+        </header>
 
         <section className="mt-6 grid gap-4 sm:grid-cols-2">
           <PlanCard title="Free" description="For trying Promptloop with one active job.">

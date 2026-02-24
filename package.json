@@ -22,6 +22,7 @@
     "@ai-sdk/react": "^3.0.92",
     "@auth/prisma-adapter": "^2.11.1",
     "@prisma/client": "^6.16.1",
+    "@vercel/analytics": "^1.6.1",
     "ai": "^6.0.77",
     "cron-parser": "^5.5.0",
     "cronstrue": "^3.11.0",

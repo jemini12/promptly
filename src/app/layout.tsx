@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Open_Sans, JetBrains_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 const openSans = Open_Sans({
@@ -44,6 +45,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${openSans.variable} ${jetbrainsMono.variable} antialiased`}>
         {children}
+        <Analytics />
       </body>
     </html>
   );

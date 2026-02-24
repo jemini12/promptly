@@ -22,6 +22,9 @@
 -   (확장) OpenAI web search tool로 동작
 -   **미리 실행(Preview)**: 저장 전 즉시 1회 실행 + 화면 미리보기 (+
     선택적으로 테스트 전송)
+-   **Post prompt (output transform)**: 모델의 1차 출력 결과를 `{{output}}`로 받아 2차 프롬프트로 정리/가공 후 전송 (선택)
+    -   기본 OFF. `post_prompt_enabled=true` 이고 템플릿이 비어있지 않을 때만 적용.
+    -   enabled=true지만 템플릿이 blank인 경우: 적용하지 않고 warning만 발생.
 -   전송 채널: Discord(Webhook), Telegram(Bot Token + Chat ID)
 -   실행 히스토리 저장
 -   **Vercel Cron Jobs + Vercel Functions**로 정기 실행 처리 (`/api/cron/run-jobs`)
@@ -130,6 +133,8 @@ CREATE TABLE jobs (
 
   name TEXT NOT NULL,
   prompt TEXT NOT NULL,                   -- 템플릿 문자열(하위 호환)
+  post_prompt TEXT NULL,                  -- 선택: 1차 출력 후 후처리 프롬프트
+  post_prompt_enabled BOOLEAN NOT NULL DEFAULT FALSE,
   published_prompt_version_id UUID NULL,  -- 현재 발행된 PromptVersion
 
   allow_web_search BOOLEAN NOT NULL DEFAULT FALSE,
@@ -368,6 +373,8 @@ Auth: - OAuth 로그인 (Google, GitHub, Discord) - 자체 비밀번호
 
 -   name: string
 -   prompt: string
+-   postPrompt: string
+-   postPromptEnabled: boolean
 -   useWebSearch: boolean
 -   scheduleType: 'daily'\|'weekly'\|'cron'
 -   time: string

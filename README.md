@@ -2,6 +2,8 @@
 
 Prompt scheduler that executes `gpt-5-mini` on daily/weekly/cron and sends output to Discord or Telegram.
 
+Optional: apply a post prompt (output transform) after the primary output and before delivery. It is disabled by default and only runs when explicitly enabled and non-empty.
+
 ## Stack
 
 - Next.js App Router + TypeScript + Tailwind

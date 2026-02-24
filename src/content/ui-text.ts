@@ -87,6 +87,14 @@ export const uiText = {
         "Unknown placeholders are left as-is, which helps catch typos.",
       ],
     },
+    postPrompt: {
+      title: "Post prompt (optional)",
+      items: [
+        "Enable it to run a second prompt after the model responds, before delivery.",
+        "Use {{output}} to reference the primary output.",
+        "If enabled but blank, it's treated as disabled (you'll see a warning).",
+      ],
+    },
     preview: {
       title: "Preview and test-send",
       description:
@@ -212,6 +220,13 @@ export const uiText = {
         strongerRewrite: "Allow stronger rewrite",
         enhanceFailed: "Enhancement failed.",
       },
+      },
+    postPrompt: {
+      label: "Post prompt (optional)",
+      enableLabel: "Enable",
+      help: "Runs after the model responds, before delivery. Use {{output}} to reference the original output.",
+      placeholder: "Example: Rewrite {{output}} as 5 crisp bullets. Keep only the final content.",
+      blankWarning: "Enabled, but prompt is blank. It will be treated as disabled.",
     },
     options: {
       title: "Options",

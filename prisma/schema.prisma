@@ -115,6 +115,8 @@ model Job {
   userId            String       @map("user_id") @db.Uuid
   name              String
   prompt            String
+  postPrompt        String?      @map("post_prompt")
+  postPromptEnabled Boolean      @default(false) @map("post_prompt_enabled")
   publishedPromptVersionId String? @map("published_prompt_version_id") @db.Uuid
   allowWebSearch    Boolean      @default(false) @map("allow_web_search")
   llmModel          String?      @map("llm_model")
@@ -148,6 +150,8 @@ model PromptVersion {
   id        String   @id @default(uuid()) @db.Uuid
   jobId     String   @map("job_id") @db.Uuid
   template  String
+  postPrompt String? @map("post_prompt")
+  postPromptEnabled Boolean      @default(false) @map("post_prompt_enabled")
   variables Json
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 

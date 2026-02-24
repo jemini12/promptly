@@ -97,6 +97,8 @@ function JobActionsSection({ jobId }: { jobId?: string }) {
     const body = {
       name: state.name,
       template: state.prompt,
+      postPrompt: state.postPrompt,
+      postPromptEnabled: state.postPromptEnabled && !!state.postPrompt.trim(),
       variables: state.variables,
       useWebSearch: state.useWebSearch,
       llmModel: state.llmModel,

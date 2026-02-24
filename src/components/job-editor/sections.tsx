@@ -166,6 +166,34 @@ export function JobPromptSection() {
               className="input-base mt-2 h-44 resize-y"
               placeholder={uiText.jobEditor.prompt.placeholder}
             />
+
+            <div className="mt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-zinc-700">{uiText.jobEditor.postPrompt.label}</p>
+                  <p className="mt-1 text-[11px] text-zinc-500">{uiText.jobEditor.postPrompt.help}</p>
+                </div>
+                <label className="inline-flex items-center gap-2 text-xs text-zinc-700">
+                  <input
+                    type="checkbox"
+                    checked={state.postPromptEnabled}
+                    onChange={(event) => setState((prev) => ({ ...prev, postPromptEnabled: event.target.checked }))}
+                  />
+                  <span>{uiText.jobEditor.postPrompt.enableLabel}</span>
+                </label>
+              </div>
+              <textarea
+                id="job-post-prompt"
+                value={state.postPrompt}
+                onChange={(event) => setState((prev) => ({ ...prev, postPrompt: event.target.value }))}
+                className="input-base mt-2 h-32 resize-y"
+                placeholder={uiText.jobEditor.postPrompt.placeholder}
+                disabled={!state.postPromptEnabled}
+              />
+              {state.postPromptEnabled && !state.postPrompt.trim() ? (
+                <p className="mt-2 text-[11px] text-amber-700">{uiText.jobEditor.postPrompt.blankWarning}</p>
+              ) : null}
+            </div>
           </div>
         </details>
       </div>
@@ -555,6 +583,8 @@ export function JobPreviewSection() {
       const payload: {
         name: string;
         template: string;
+        postPrompt: string;
+        postPromptEnabled: boolean;
         variables: string;
         useWebSearch: boolean;
         llmModel: string;
@@ -564,6 +594,8 @@ export function JobPreviewSection() {
       } = {
         name: state.name || uiText.jobEditor.preview.defaultName,
         template: state.prompt,
+        postPrompt: state.postPrompt,
+        postPromptEnabled: state.postPromptEnabled && !!state.postPrompt.trim(),
         variables: state.variables,
         useWebSearch: state.useWebSearch,
         llmModel: state.llmModel,

@@ -8,6 +8,7 @@ import { enforceDailyRunLimit } from "@/lib/limits";
 import { getOrCreatePublishedPromptVersion } from "@/lib/prompt-version";
 import { normalizeLlmModel, normalizeWebSearchMode, type WebSearchMode } from "@/lib/llm-defaults";
 import { compilePromptTemplate, coerceStringVars } from "@/lib/prompt-compile";
+import { buildPostPromptVariables, normalizePostPromptConfig } from "@/lib/post-prompt";
 
 const DEFAULT_LOCK_STALE_MINUTES = 10;
 const MAX_FAILS_BEFORE_DISABLE = 10;
@@ -247,6 +248,39 @@ export async function runDueJobs(opts: { timeBudgetMs: number; maxJobs: number; 
       });
       output = llm.output;
 
+      const postPromptConfig = normalizePostPromptConfig({
+        enabled: pv.postPromptEnabled ?? job.postPromptEnabled,
+        template: pv.postPrompt ?? job.postPrompt,
+      });
+      let postPromptApplied = false;
+      let usageToStore: unknown = llm.llmUsage ?? null;
+      let toolCallsToStore: unknown = llm.llmToolCalls ?? null;
+
+      if (postPromptConfig.enabled) {
+        const postPrompt = compilePromptTemplate(
+          postPromptConfig.template,
+          buildPostPromptVariables({
+            baseVariables: vars,
+            output: llm.output,
+            citations: llm.citations,
+            usedWebSearch: llm.usedWebSearch,
+            llmModel: llm.llmModel ?? normalizeLlmModel(job.llmModel),
+          }),
+          { nowIso: scheduledFor.toISOString(), timezone: "UTC" },
+        );
+
+        const post = await runPromptWithRetry(postPrompt, {
+          model: normalizeLlmModel(job.llmModel),
+          useWebSearch: false,
+          webSearchMode: normalizeWebSearchMode(job.webSearchMode),
+        });
+
+        output = post.output;
+        usageToStore = { primary: llm.llmUsage ?? null, post: post.llmUsage ?? null };
+        toolCallsToStore = { primary: llm.llmToolCalls ?? null, post: post.llmToolCalls ?? null };
+        postPromptApplied = true;
+      }
+
       await prisma.runHistory.update({
         where: { id: runHistoryId },
         data: {
@@ -255,8 +289,8 @@ export async function runDueJobs(opts: { timeBudgetMs: number; maxJobs: number; 
         },
       });
 
-      const llmUsageJson = llm.llmUsage == null ? null : JSON.stringify(llm.llmUsage);
-      const llmToolCallsJson = llm.llmToolCalls == null ? null : JSON.stringify(llm.llmToolCalls);
+      const llmUsageJson = usageToStore == null ? null : JSON.stringify(usageToStore);
+      const llmToolCallsJson = toolCallsToStore == null ? null : JSON.stringify(toolCallsToStore);
       const citationsJson = JSON.stringify(llm.citations);
 
       await prisma.$executeRaw`
@@ -279,6 +313,8 @@ export async function runDueJobs(opts: { timeBudgetMs: number; maxJobs: number; 
           scheduledFor: scheduledFor.toISOString(),
           llmModel: llm.llmModel ?? null,
           llmUsage: llm.llmUsage ?? null,
+          postPromptApplied,
+          postPromptWarning: postPromptConfig.warning,
         },
       });
       if (delivery.lastError) {

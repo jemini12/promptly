@@ -58,6 +58,8 @@ export async function POST(request: NextRequest) {
         userId,
         name: parsed.name,
         prompt: parsed.template,
+        postPrompt: parsed.postPrompt.trim() ? parsed.postPrompt : null,
+        postPromptEnabled: parsed.postPromptEnabled && !!parsed.postPrompt.trim(),
         allowWebSearch: parsed.useWebSearch,
         llmModel: parsed.llmModel || null,
         webSearchMode: parsed.webSearchMode || null,
@@ -72,6 +74,8 @@ export async function POST(request: NextRequest) {
         promptVersions: {
           create: {
             template: parsed.template,
+            postPrompt: parsed.postPrompt.trim() ? parsed.postPrompt : null,
+            postPromptEnabled: parsed.postPromptEnabled && !!parsed.postPrompt.trim(),
             variables,
           },
         },

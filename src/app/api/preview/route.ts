@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { enforceDailyRunLimit } from "@/lib/limits";
 import { normalizeLlmModel } from "@/lib/llm-defaults";
 import { compilePromptTemplate, coerceStringVars } from "@/lib/prompt-compile";
+import { buildPostPromptVariables, normalizePostPromptConfig } from "@/lib/post-prompt";
 
 export const maxDuration = 300;
 
@@ -23,11 +24,37 @@ export async function POST(request: NextRequest) {
     const vars = coerceStringVars(rawVars);
     const prompt = compilePromptTemplate(payload.template, vars, { nowIso: payload.nowIso, timezone: payload.timezone });
 
+    const modelId = normalizeLlmModel(payload.llmModel);
     const result = await runPrompt(prompt, {
-      model: normalizeLlmModel(payload.llmModel),
+      model: modelId,
       useWebSearch: payload.useWebSearch,
       webSearchMode: payload.webSearchMode,
     });
+
+    let output = result.output;
+    let postPromptApplied = false;
+    const postPromptConfig = normalizePostPromptConfig({ enabled: payload.postPromptEnabled, template: payload.postPrompt });
+    if (postPromptConfig.enabled) {
+      const postPrompt = compilePromptTemplate(
+        postPromptConfig.template,
+        buildPostPromptVariables({
+          baseVariables: vars,
+          output: result.output,
+          citations: result.citations,
+          usedWebSearch: result.usedWebSearch,
+          llmModel: result.llmModel ?? modelId,
+        }),
+        { nowIso: payload.nowIso, timezone: payload.timezone },
+      );
+
+      const post = await runPrompt(postPrompt, {
+        model: modelId,
+        useWebSearch: false,
+        webSearchMode: payload.webSearchMode,
+      });
+      output = post.output;
+      postPromptApplied = true;
+    }
     const title = `[${payload.name}] ${format(now, "yyyy-MM-dd HH:mm")}`;
 
     if (payload.testSend && payload.channel) {
@@ -35,7 +62,7 @@ export async function POST(request: NextRequest) {
         await sendChannelMessage(
           { type: "discord", webhookUrl: payload.channel.config.webhookUrl },
           title,
-          result.output,
+          output,
           { citations: result.citations, usedWebSearch: result.usedWebSearch, meta: { kind: "preview" } },
         );
       } else if (payload.channel.type === "telegram") {
@@ -46,7 +73,7 @@ export async function POST(request: NextRequest) {
             chatId: payload.channel.config.chatId,
           },
           title,
-          result.output,
+          output,
           { citations: result.citations, usedWebSearch: result.usedWebSearch, meta: { kind: "preview" } },
         );
       } else {
@@ -59,7 +86,7 @@ export async function POST(request: NextRequest) {
             payload: payload.channel.config.payload,
           },
           title,
-          result.output,
+          output,
           { citations: result.citations, usedWebSearch: result.usedWebSearch, meta: { kind: "preview" } },
         );
       }
@@ -69,11 +96,13 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       status: "success",
-      output: result.output,
+      output,
       executedAt: new Date().toISOString(),
       usedWebSearch: result.usedWebSearch,
       citations: result.citations,
       llmModel: result.llmModel ?? null,
+      postPromptApplied,
+      postPromptWarning: postPromptConfig.warning,
     });
   } catch (error) {
     return errorResponse(error);

@@ -34,6 +34,9 @@ export default async function EditJobPage({ params }: Params) {
 
   const template = job.publishedPromptVersion?.template ?? job.prompt;
   const variables = JSON.stringify((job.publishedPromptVersion?.variables as object | null) ?? {}, null, 2);
+  const postPromptValue = job.publishedPromptVersion?.postPrompt ?? job.postPrompt ?? "";
+  const postPromptEnabledRaw = job.publishedPromptVersion?.postPromptEnabled ?? job.postPromptEnabled;
+  const postPromptEnabled = postPromptEnabledRaw && postPromptValue.trim().length > 0;
 
   const channel =
     job.channelType === "discord"
@@ -70,6 +73,8 @@ export default async function EditJobPage({ params }: Params) {
           initialState={{
             name: job.name,
             prompt: template,
+            postPrompt: postPromptValue,
+            postPromptEnabled,
             variables,
             llmModel: DEFAULT_LLM_MODEL,
             useWebSearch: job.allowWebSearch,

@@ -2,7 +2,10 @@ import { prisma } from "@/lib/prisma";
 
 export async function getOrCreatePublishedPromptVersion(jobId: string) {
   return prisma.$transaction(async (tx) => {
-    const job = await tx.job.findUnique({ where: { id: jobId }, select: { id: true, prompt: true, publishedPromptVersionId: true } });
+    const job = await tx.job.findUnique({
+      where: { id: jobId },
+      select: { id: true, prompt: true, postPrompt: true, postPromptEnabled: true, publishedPromptVersionId: true },
+    });
     if (!job) {
       throw new Error("Job not found");
     }
@@ -18,6 +21,8 @@ export async function getOrCreatePublishedPromptVersion(jobId: string) {
       data: {
         jobId: job.id,
         template: job.prompt,
+        postPrompt: job.postPrompt,
+        postPromptEnabled: job.postPromptEnabled,
         variables: {},
       },
     });

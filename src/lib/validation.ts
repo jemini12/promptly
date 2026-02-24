@@ -36,6 +36,8 @@ const webhookConfigSchema = z.object({
 
 export const previewSchema = z.object({
   template: z.string().min(1).max(8000),
+  postPrompt: z.string().max(8000).optional().default(""),
+  postPromptEnabled: z.boolean().optional().default(false),
   variables: z.string().default("{}").optional(),
   useWebSearch: z.boolean().default(false),
   llmModel: z
@@ -80,6 +82,8 @@ export const jobUpsertSchema = z
   .object({
     name: z.string().min(1).max(100),
     template: z.string().min(1).max(8000),
+    postPrompt: z.string().max(8000).optional().default(""),
+    postPromptEnabled: z.boolean().optional().default(false),
     variables: z.string().default("{}").optional(),
     useWebSearch: z.boolean().default(false),
     llmModel: z

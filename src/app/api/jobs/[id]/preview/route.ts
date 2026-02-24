@@ -12,6 +12,7 @@ import { enforceDailyRunLimit } from "@/lib/limits";
 import { getOrCreatePublishedPromptVersion } from "@/lib/prompt-version";
 import { normalizeLlmModel, normalizeWebSearchMode } from "@/lib/llm-defaults";
 import { compilePromptTemplate, coerceStringVars } from "@/lib/prompt-compile";
+import { buildPostPromptVariables, normalizePostPromptConfig } from "@/lib/post-prompt";
 
 export const maxDuration = 300;
 
@@ -37,15 +38,42 @@ export async function POST(request: NextRequest, { params }: Params) {
     const vars = coerceStringVars(pv.variables);
     const prompt = compilePromptTemplate(pv.template, vars);
 
+    const modelId = normalizeLlmModel(job.llmModel);
     const result = await runPrompt(prompt, {
-      model: normalizeLlmModel(job.llmModel),
+      model: modelId,
       useWebSearch: job.allowWebSearch,
       webSearchMode: normalizeWebSearchMode(job.webSearchMode),
     });
+
+    let output = result.output;
+    let postPromptApplied = false;
+    let postUsage: unknown = null;
+    let postToolCalls: unknown = null;
+    const postPromptConfig = normalizePostPromptConfig({
+      enabled: pv.postPromptEnabled ?? job.postPromptEnabled,
+      template: pv.postPrompt ?? job.postPrompt,
+    });
+    if (postPromptConfig.enabled) {
+      const postPrompt = compilePromptTemplate(
+        postPromptConfig.template,
+        buildPostPromptVariables({
+          baseVariables: vars,
+          output: result.output,
+          citations: result.citations,
+          usedWebSearch: result.usedWebSearch,
+          llmModel: result.llmModel ?? modelId,
+        }),
+      );
+      const post = await runPrompt(postPrompt, { model: modelId, useWebSearch: false, webSearchMode: normalizeWebSearchMode(job.webSearchMode) });
+      output = post.output;
+      postUsage = post.llmUsage ?? null;
+      postToolCalls = post.llmToolCalls ?? null;
+      postPromptApplied = true;
+    }
     const title = `[${job.name}] ${format(new Date(), "yyyy-MM-dd HH:mm")}`;
 
     if (body.testSend) {
-      await sendChannelMessage(toRunnableChannel(job), title, result.output, {
+      await sendChannelMessage(toRunnableChannel(job), title, output, {
         citations: result.citations,
         usedWebSearch: result.usedWebSearch,
         meta: { kind: "job-preview", jobId: job.id, promptVersionId: pv.id },
@@ -57,11 +85,21 @@ export async function POST(request: NextRequest, { params }: Params) {
         job: { connect: { id: job.id } },
         promptVersion: { connect: { id: pv.id } },
         status: "success",
-        outputText: result.output,
-        outputPreview: result.output.slice(0, 1000),
+        outputText: output,
+        outputPreview: output.slice(0, 1000),
         llmModel: result.llmModel ?? null,
-        llmUsage: result.llmUsage == null ? Prisma.DbNull : (result.llmUsage as Prisma.InputJsonValue),
-        llmToolCalls: result.llmToolCalls == null ? Prisma.DbNull : (result.llmToolCalls as Prisma.InputJsonValue),
+        llmUsage:
+          postPromptApplied
+            ? ({ primary: result.llmUsage ?? null, post: postUsage } as Prisma.InputJsonValue)
+            : result.llmUsage == null
+              ? Prisma.DbNull
+              : (result.llmUsage as Prisma.InputJsonValue),
+        llmToolCalls:
+          postPromptApplied
+            ? ({ primary: result.llmToolCalls ?? null, post: postToolCalls } as Prisma.InputJsonValue)
+            : result.llmToolCalls == null
+              ? Prisma.DbNull
+              : (result.llmToolCalls as Prisma.InputJsonValue),
         usedWebSearch: result.usedWebSearch,
         citations: (result.citations as unknown as Prisma.InputJsonValue) ?? Prisma.DbNull,
         isPreview: true,
@@ -71,11 +109,13 @@ export async function POST(request: NextRequest, { params }: Params) {
 
     return NextResponse.json({
       status: "success",
-      output: result.output,
+      output,
       executedAt: new Date().toISOString(),
       usedWebSearch: result.usedWebSearch,
       citations: result.citations,
       llmModel: result.llmModel ?? null,
+      postPromptApplied,
+      postPromptWarning: postPromptConfig.warning,
     });
   } catch (error) {
     return errorResponse(error);

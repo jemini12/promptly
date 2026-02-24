@@ -3,6 +3,8 @@ import { DEFAULT_LLM_MODEL, DEFAULT_WEB_SEARCH_MODE, type WebSearchMode } from "
 export type JobFormState = {
   name: string;
   prompt: string;
+  postPrompt: string;
+  postPromptEnabled: boolean;
   variables: string;
   llmModel: string;
   useWebSearch: boolean;
@@ -39,6 +41,8 @@ export type JobFormState = {
 export const defaultJobFormState: JobFormState = {
   name: "",
   prompt: "",
+  postPrompt: "",
+  postPromptEnabled: false,
   variables: "{}",
   llmModel: DEFAULT_LLM_MODEL,
   useWebSearch: false,

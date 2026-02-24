@@ -18,6 +18,7 @@ import { compilePromptTemplate, coerceStringVars } from "@/lib/prompt-compile";
 import { enhancePrompt } from "@/lib/prompt-writer";
 import { generatePromptDraftFromIntent, inferUseWebSearch, proposeSchedule } from "@/lib/job-intents";
 import { redactMessageForStorage } from "@/lib/chat-redact";
+import { buildPostPromptVariables, normalizePostPromptConfig } from "@/lib/post-prompt";
 
 export const maxDuration = 300;
 
@@ -104,6 +105,8 @@ const createJobInputSchema = z
   .object({
     name: z.string().min(1).max(100),
     template: z.string().min(1).max(8000),
+    postPrompt: z.string().max(8000).optional().default(""),
+    postPromptEnabled: z.boolean().optional().default(false),
     variables: z.record(z.string(), z.string()).optional().default({}),
     useWebSearch: z.boolean().optional().default(false),
     llmModel: z.string().optional(),
@@ -137,6 +140,8 @@ const updateJobInputSchema = z
     jobId: z.string().min(1).max(64),
     name: z.string().min(1).max(100).optional(),
     template: z.string().min(1).max(8000).optional(),
+    postPrompt: z.string().max(8000).optional(),
+    postPromptEnabled: z.boolean().optional(),
     variables: z.record(z.string(), z.string()).optional(),
     useWebSearch: z.boolean().optional(),
     llmModel: z.string().optional(),
@@ -177,6 +182,8 @@ const deleteJobInputSchema = z.object({
 const previewTemplateInputSchema = z.object({
   name: z.string().max(100).optional().default("Preview"),
   template: z.string().min(1).max(8000),
+  postPrompt: z.string().max(8000).optional().default(""),
+  postPromptEnabled: z.boolean().optional().default(false),
   variables: z.record(z.string(), z.string()).optional().default({}),
   useWebSearch: z.boolean().optional().default(false),
   llmModel: z.string().optional(),
@@ -413,6 +420,8 @@ export async function POST(req: Request) {
               userId,
               name: input.name,
               prompt: input.template,
+              postPrompt: input.postPrompt.trim() ? input.postPrompt : null,
+              postPromptEnabled: input.postPromptEnabled && !!input.postPrompt.trim(),
               allowWebSearch: input.useWebSearch,
               llmModel: llmModel || null,
               webSearchMode: webSearchMode || null,
@@ -427,6 +436,8 @@ export async function POST(req: Request) {
               promptVersions: {
                 create: {
                   template: input.template,
+                  postPrompt: input.postPrompt.trim() ? input.postPrompt : null,
+                  postPromptEnabled: input.postPromptEnabled && !!input.postPrompt.trim(),
                   variables: input.variables,
                 },
               },
@@ -488,6 +499,9 @@ export async function POST(req: Request) {
 
           const nextName = input.name ?? existing.name;
           const nextTemplate = input.template ?? existing.prompt;
+          const nextPostPrompt = input.postPrompt ?? existing.postPrompt ?? "";
+          const nextPostPromptEnabledRaw = input.postPromptEnabled ?? existing.postPromptEnabled;
+          const nextPostPromptEnabled = nextPostPromptEnabledRaw && !!nextPostPrompt.trim();
           const nextUseWebSearch = input.useWebSearch ?? existing.allowWebSearch;
           const nextLlmModel = normalizeLlmModel(input.llmModel ?? existing.llmModel ?? undefined) || null;
           const nextWebSearchMode = normalizeWebSearchMode(input.webSearchMode ?? existing.webSearchMode ?? undefined) || null;
@@ -512,8 +526,11 @@ export async function POST(req: Request) {
 
           const channel = input.channel ? toDbChannelConfig(input.channel) : null;
 
-          const shouldCreatePromptVersion = input.template != null || input.variables != null;
+          const shouldCreatePromptVersion =
+            input.template != null || input.variables != null || input.postPrompt != null || input.postPromptEnabled != null;
           const pvTemplate = nextTemplate;
+          const pvPostPrompt = nextPostPrompt.trim() ? nextPostPrompt : null;
+          const pvPostPromptEnabled = nextPostPromptEnabled;
           const pvVariables = input.variables ?? coerceStringVars(existing.publishedPromptVersion?.variables ?? {});
 
           const updatedJob = await prisma.job.update({
@@ -521,6 +538,8 @@ export async function POST(req: Request) {
             data: {
               name: nextName,
               prompt: nextTemplate,
+              postPrompt: nextPostPrompt.trim() ? nextPostPrompt : null,
+              postPromptEnabled: nextPostPromptEnabled,
               allowWebSearch: nextUseWebSearch,
               llmModel: nextLlmModel,
               webSearchMode: nextWebSearchMode,
@@ -536,6 +555,8 @@ export async function POST(req: Request) {
                     promptVersions: {
                       create: {
                         template: pvTemplate,
+                        postPrompt: pvPostPrompt,
+                        postPromptEnabled: pvPostPromptEnabled,
                         variables: pvVariables,
                       },
                     },
@@ -605,15 +626,42 @@ export async function POST(req: Request) {
           const vars = coerceStringVars(pv.variables);
           const prompt = compilePromptTemplate(pv.template, vars);
 
+          const modelId = normalizeLlmModel(job.llmModel);
           const result = await runPrompt(prompt, {
-            model: normalizeLlmModel(job.llmModel),
+            model: modelId,
             useWebSearch: job.allowWebSearch,
             webSearchMode: normalizeWebSearchMode(job.webSearchMode),
           });
+
+          let output = result.output;
+          let postPromptApplied = false;
+          let postUsage: unknown = null;
+          let postToolCalls: unknown = null;
+          const postPromptConfig = normalizePostPromptConfig({
+            enabled: pv.postPromptEnabled ?? job.postPromptEnabled,
+            template: pv.postPrompt ?? job.postPrompt,
+          });
+          if (postPromptConfig.enabled) {
+            const postPrompt = compilePromptTemplate(
+              postPromptConfig.template,
+              buildPostPromptVariables({
+                baseVariables: vars,
+                output: result.output,
+                citations: result.citations,
+                usedWebSearch: result.usedWebSearch,
+                llmModel: result.llmModel ?? modelId,
+              }),
+            );
+            const post = await runPrompt(postPrompt, { model: modelId, useWebSearch: false, webSearchMode: normalizeWebSearchMode(job.webSearchMode) });
+            output = post.output;
+            postUsage = post.llmUsage ?? null;
+            postToolCalls = post.llmToolCalls ?? null;
+            postPromptApplied = true;
+          }
           const title = `[${job.name}] ${format(new Date(), "yyyy-MM-dd HH:mm")}`;
 
           if (testSend) {
-            await sendChannelMessage(toRunnableChannel(job), title, result.output, {
+            await sendChannelMessage(toRunnableChannel(job), title, output, {
               citations: result.citations,
               usedWebSearch: result.usedWebSearch,
               meta: { kind: "job-preview", jobId: job.id, promptVersionId: pv.id },
@@ -625,11 +673,21 @@ export async function POST(req: Request) {
               job: { connect: { id: job.id } },
               promptVersion: { connect: { id: pv.id } },
               status: "success",
-              outputText: result.output,
-              outputPreview: result.output.slice(0, 1000),
+              outputText: output,
+              outputPreview: output.slice(0, 1000),
               llmModel: result.llmModel ?? null,
-              llmUsage: result.llmUsage == null ? Prisma.DbNull : (result.llmUsage as Prisma.InputJsonValue),
-              llmToolCalls: result.llmToolCalls == null ? Prisma.DbNull : (result.llmToolCalls as Prisma.InputJsonValue),
+              llmUsage:
+                postPromptApplied
+                  ? ({ primary: result.llmUsage ?? null, post: postUsage } as Prisma.InputJsonValue)
+                  : result.llmUsage == null
+                    ? Prisma.DbNull
+                    : (result.llmUsage as Prisma.InputJsonValue),
+              llmToolCalls:
+                postPromptApplied
+                  ? ({ primary: result.llmToolCalls ?? null, post: postToolCalls } as Prisma.InputJsonValue)
+                  : result.llmToolCalls == null
+                    ? Prisma.DbNull
+                    : (result.llmToolCalls as Prisma.InputJsonValue),
               usedWebSearch: result.usedWebSearch,
               citations: (result.citations as unknown as Prisma.InputJsonValue) ?? Prisma.DbNull,
               isPreview: true,
@@ -640,11 +698,13 @@ export async function POST(req: Request) {
           return {
             status: "success",
             jobId: job.id,
-            output: result.output,
+            output,
             executedAt: new Date().toISOString(),
             usedWebSearch: result.usedWebSearch,
             citations: result.citations,
             llmModel: result.llmModel ?? null,
+            postPromptApplied,
+            postPromptWarning: postPromptConfig.warning,
           };
         },
       }),
@@ -661,53 +721,76 @@ export async function POST(req: Request) {
             timezone: input.timezone,
           });
 
+          const modelId = normalizeLlmModel(input.llmModel);
           const result = await runPrompt(prompt, {
-            model: normalizeLlmModel(input.llmModel),
+            model: modelId,
             useWebSearch: input.useWebSearch,
             webSearchMode: normalizeWebSearchMode(input.webSearchMode),
           });
+
+          let output = result.output;
+          let postPromptApplied = false;
+          const postPromptConfig = normalizePostPromptConfig({ enabled: input.postPromptEnabled, template: input.postPrompt });
+          if (postPromptConfig.enabled) {
+            const postPrompt = compilePromptTemplate(
+              postPromptConfig.template,
+              buildPostPromptVariables({
+                baseVariables: input.variables,
+                output: result.output,
+                citations: result.citations,
+                usedWebSearch: result.usedWebSearch,
+                llmModel: result.llmModel ?? modelId,
+              }),
+              { nowIso: input.nowIso, timezone: input.timezone },
+            );
+            const post = await runPrompt(postPrompt, { model: modelId, useWebSearch: false, webSearchMode: normalizeWebSearchMode(input.webSearchMode) });
+            output = post.output;
+            postPromptApplied = true;
+          }
           const title = `[${input.name}] ${format(now, "yyyy-MM-dd HH:mm")}`;
 
           if (input.testSend && input.channel) {
             if (input.channel.type === "discord") {
-              await sendChannelMessage(
-                { type: "discord", webhookUrl: input.channel.config.webhookUrl },
-                title,
-                result.output,
-                { citations: result.citations, usedWebSearch: result.usedWebSearch, meta: { kind: "preview" } },
-              );
-            } else if (input.channel.type === "telegram") {
-              await sendChannelMessage(
-                { type: "telegram", botToken: input.channel.config.botToken, chatId: input.channel.config.chatId },
-                title,
-                result.output,
-                { citations: result.citations, usedWebSearch: result.usedWebSearch, meta: { kind: "preview" } },
-              );
-            } else {
-              await sendChannelMessage(
-                {
-                  type: "webhook",
-                  url: input.channel.config.url,
-                  method: input.channel.config.method,
-                  headers: input.channel.config.headers,
-                  payload: input.channel.config.payload,
-                },
-                title,
-                result.output,
-                { citations: result.citations, usedWebSearch: result.usedWebSearch, meta: { kind: "preview" } },
-              );
-            }
+                await sendChannelMessage(
+                  { type: "discord", webhookUrl: input.channel.config.webhookUrl },
+                  title,
+                  output,
+                  { citations: result.citations, usedWebSearch: result.usedWebSearch, meta: { kind: "preview" } },
+                );
+              } else if (input.channel.type === "telegram") {
+                await sendChannelMessage(
+                  { type: "telegram", botToken: input.channel.config.botToken, chatId: input.channel.config.chatId },
+                  title,
+                  output,
+                  { citations: result.citations, usedWebSearch: result.usedWebSearch, meta: { kind: "preview" } },
+                );
+              } else {
+                await sendChannelMessage(
+                  {
+                    type: "webhook",
+                    url: input.channel.config.url,
+                    method: input.channel.config.method,
+                    headers: input.channel.config.headers,
+                    payload: input.channel.config.payload,
+                  },
+                  title,
+                  output,
+                  { citations: result.citations, usedWebSearch: result.usedWebSearch, meta: { kind: "preview" } },
+                );
+              }
           }
 
           await prisma.previewEvent.create({ data: { userId } });
 
           return {
             status: "success",
-            output: result.output,
+            output,
             executedAt: new Date().toISOString(),
             usedWebSearch: result.usedWebSearch,
             citations: result.citations,
             llmModel: result.llmModel ?? null,
+            postPromptApplied,
+            postPromptWarning: postPromptConfig.warning,
           };
         },
       }),

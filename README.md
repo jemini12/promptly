@@ -123,6 +123,3 @@ Apply the migration locally:
 npx prisma migrate dev
 ```
 
-Docs: `docs/job-builder-chat.md`
-
-Billing: `docs/billing.md`

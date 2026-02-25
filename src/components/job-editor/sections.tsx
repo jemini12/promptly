@@ -5,6 +5,14 @@ import { useEffect, useRef, useState } from "react";
 import { useJobForm } from "@/components/job-editor/job-form-provider";
 import { Button } from "@/components/ui/button";
 import { uiText } from "@/content/ui-text";
+import {
+  convertUtcHHmmToZonedHHmm,
+  convertUtcWeeklyToZoned,
+  convertZonedHHmmToUtcHHmm,
+  convertZonedWeeklyToUtc,
+  formatUtcOffset,
+  getBrowserTimeZone,
+} from "@/lib/timezone";
 
 const sectionClass = "surface-card";
 const dayOptions = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -321,10 +329,58 @@ export function JobOptionsSection() {
 export function JobScheduleSection() {
   const { state, setState } = useJobForm();
 
+  const timeZone = state.scheduleTimeZone.trim() ? state.scheduleTimeZone : getBrowserTimeZone();
+  const timeZoneOffset = formatUtcOffset(timeZone);
+  const storedUtcTime = (() => {
+    if (state.scheduleType === "cron") return null;
+    if (!state.time.trim()) return null;
+    if (state.scheduleType === "weekly") {
+      const { utcDayOfWeek, utcHHmm } = convertZonedWeeklyToUtc(state.dayOfWeek ?? 1, state.time, timeZone);
+      return `${dayOptions[utcDayOfWeek]} ${utcHHmm}`;
+    }
+    return convertZonedHHmmToUtcHHmm(state.time, timeZone);
+  })();
+
+  useEffect(() => {
+    if (state.scheduleTimeZone.trim()) return;
+    setState((prev) => ({ ...prev, scheduleTimeZone: getBrowserTimeZone() }));
+  }, [setState, state.scheduleTimeZone]);
+
+  useEffect(() => {
+    if (state.scheduleType === "cron") return;
+    if (!state.timeIsUtc) return;
+
+    try {
+      if (state.scheduleType === "weekly") {
+        const local = convertUtcWeeklyToZoned(state.dayOfWeek ?? 1, state.time, timeZone);
+        setState((prev) => ({ ...prev, time: local.timeHHmm, dayOfWeek: local.dayOfWeek, timeIsUtc: false }));
+      } else {
+        const local = convertUtcHHmmToZonedHHmm(state.time, timeZone);
+        setState((prev) => ({ ...prev, time: local, timeIsUtc: false }));
+      }
+    } catch {
+      setState((prev) => ({ ...prev, timeIsUtc: false }));
+    }
+  }, [setState, state.dayOfWeek, state.scheduleType, state.time, state.timeIsUtc, timeZone]);
+
   return (
     <section className={sectionClass}>
-      <h3 className="text-sm font-medium text-zinc-900">{uiText.jobEditor.schedule.title}</h3>
-      <p className="field-help">{uiText.jobEditor.schedule.description}</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-sm font-medium text-zinc-900">{uiText.jobEditor.schedule.title}</h3>
+          <p className="field-help">{uiText.jobEditor.schedule.description}</p>
+        </div>
+        <span className="shrink-0 rounded-full border border-zinc-200 bg-zinc-50 px-2 py-1 text-[11px] text-zinc-600">
+          {timeZone} · {timeZoneOffset}
+        </span>
+      </div>
+      <p className="mt-2 text-[11px] text-zinc-500">
+        {state.scheduleType === "cron"
+          ? uiText.jobEditor.schedule.timezone.cronNote
+          : storedUtcTime
+            ? uiText.jobEditor.schedule.timezone.storedNote(storedUtcTime)
+            : uiText.jobEditor.schedule.timezone.defaultNote}
+      </p>
       <div className="mt-3 grid gap-3 sm:grid-cols-3">
         <select
           aria-label="Schedule type"
@@ -381,29 +437,30 @@ export function JobScheduleSection() {
 export function JobChannelSection() {
   const { state, setState } = useJobForm();
 
+  function setChannel(next: typeof state.channel) {
+    setState((prev) => ({ ...prev, channel: next, channelPrefillSource: null }));
+  }
+
   return (
     <section className={sectionClass}>
       <h3 className="text-sm font-medium text-zinc-900">{uiText.jobEditor.channel.title}</h3>
       <p className="field-help">{uiText.jobEditor.channel.description}</p>
+      {state.channelPrefillSource === "last_job" ? (
+        <p className="mt-2 text-xs text-zinc-500">{uiText.jobEditor.channel.prefilledFromLastJob}</p>
+      ) : null}
       <select
         aria-label="Delivery channel"
         value={state.channel.type}
         onChange={(event) => {
           if (event.target.value === "discord") {
-            setState((prev) => ({ ...prev, channel: { type: "discord", config: { webhookUrl: "" } } }));
+            setChannel({ type: "discord", config: { webhookUrl: "" } });
             return;
           }
           if (event.target.value === "webhook") {
-            setState((prev) => ({
-              ...prev,
-              channel: {
-                type: "webhook",
-                config: { url: "", method: "POST", headers: "", payload: "" },
-              },
-            }));
+            setChannel({ type: "webhook", config: { url: "", method: "POST", headers: "", payload: "" } });
             return;
           }
-          setState((prev) => ({ ...prev, channel: { type: "telegram", config: { botToken: "", chatId: "" } } }));
+          setChannel({ type: "telegram", config: { botToken: "", chatId: "" } });
         }}
         className="input-base mt-2 h-10"
       >
@@ -417,10 +474,7 @@ export function JobChannelSection() {
           aria-label="Discord webhook URL"
           value={state.channel.config.webhookUrl}
           onChange={(event) =>
-            setState((prev) => ({
-              ...prev,
-              channel: { type: "discord", config: { webhookUrl: event.target.value } },
-            }))
+            setChannel({ type: "discord", config: { webhookUrl: event.target.value } })
           }
           className="input-base mt-3"
           placeholder={uiText.jobEditor.channel.discordPlaceholder}
@@ -431,16 +485,10 @@ export function JobChannelSection() {
             aria-label="Telegram bot token"
             value={state.channel.config.botToken}
             onChange={(event) =>
-              setState((prev) => ({
-                ...prev,
-                channel: {
-                  type: "telegram",
-                  config: {
-                    botToken: event.target.value,
-                    chatId: prev.channel.type === "telegram" ? prev.channel.config.chatId : "",
-                  },
-                },
-              }))
+              setChannel({
+                type: "telegram",
+                config: { botToken: event.target.value, chatId: state.channel.type === "telegram" ? state.channel.config.chatId : "" },
+              })
             }
             className="input-base"
             placeholder={uiText.jobEditor.channel.telegramBotPlaceholder}
@@ -449,16 +497,10 @@ export function JobChannelSection() {
             aria-label="Telegram chat ID"
             value={state.channel.config.chatId}
             onChange={(event) =>
-              setState((prev) => ({
-                ...prev,
-                channel: {
-                  type: "telegram",
-                  config: {
-                    botToken: prev.channel.type === "telegram" ? prev.channel.config.botToken : "",
-                    chatId: event.target.value,
-                  },
-                },
-              }))
+              setChannel({
+                type: "telegram",
+                config: { botToken: state.channel.type === "telegram" ? state.channel.config.botToken : "", chatId: event.target.value },
+              })
             }
             className="input-base"
             placeholder={uiText.jobEditor.channel.telegramChatPlaceholder}
@@ -470,18 +512,13 @@ export function JobChannelSection() {
             aria-label="Webhook URL"
             value={state.channel.config.url}
             onChange={(event) =>
-              setState((prev) => ({
-                ...prev,
-                channel: {
-                  type: "webhook",
-                  config: {
-                    ...(prev.channel.type === "webhook"
-                      ? prev.channel.config
-                      : { method: "POST", headers: "", payload: "" }),
-                    url: event.target.value,
-                  },
+              setChannel({
+                type: "webhook",
+                config: {
+                  ...(state.channel.type === "webhook" ? state.channel.config : { method: "POST", headers: "", payload: "" }),
+                  url: event.target.value,
                 },
-              }))
+              })
             }
             className="input-base"
             placeholder={uiText.jobEditor.channel.webhookUrlPlaceholder}
@@ -490,18 +527,13 @@ export function JobChannelSection() {
             aria-label="Webhook method"
             value={state.channel.config.method}
             onChange={(event) =>
-              setState((prev) => ({
-                ...prev,
-                channel: {
-                  type: "webhook",
-                  config: {
-                    ...(prev.channel.type === "webhook"
-                      ? prev.channel.config
-                      : { url: "", headers: "", payload: "" }),
-                    method: event.target.value as "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
-                  },
+              setChannel({
+                type: "webhook",
+                config: {
+                  ...(state.channel.type === "webhook" ? state.channel.config : { url: "", headers: "", payload: "" }),
+                  method: event.target.value as "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
                 },
-              }))
+              })
             }
             className="input-base h-10"
           >
@@ -515,18 +547,13 @@ export function JobChannelSection() {
             aria-label="Webhook headers JSON"
             value={state.channel.config.headers}
             onChange={(event) =>
-              setState((prev) => ({
-                ...prev,
-                channel: {
-                  type: "webhook",
-                  config: {
-                    ...(prev.channel.type === "webhook"
-                      ? prev.channel.config
-                      : { url: "", method: "POST", payload: "" }),
-                    headers: event.target.value,
-                  },
+              setChannel({
+                type: "webhook",
+                config: {
+                  ...(state.channel.type === "webhook" ? state.channel.config : { url: "", method: "POST", payload: "" }),
+                  headers: event.target.value,
                 },
-              }))
+              })
             }
             className="input-base h-24"
             placeholder={uiText.jobEditor.channel.headersPlaceholder}
@@ -535,18 +562,13 @@ export function JobChannelSection() {
             aria-label="Webhook payload JSON"
             value={state.channel.config.payload}
             onChange={(event) =>
-              setState((prev) => ({
-                ...prev,
-                channel: {
-                  type: "webhook",
-                  config: {
-                    ...(prev.channel.type === "webhook"
-                      ? prev.channel.config
-                      : { url: "", method: "POST", headers: "" }),
-                    payload: event.target.value,
-                  },
+              setChannel({
+                type: "webhook",
+                config: {
+                  ...(state.channel.type === "webhook" ? state.channel.config : { url: "", method: "POST", headers: "" }),
+                  payload: event.target.value,
                 },
-              }))
+              })
             }
             className="input-base h-28"
             placeholder={uiText.jobEditor.channel.payloadPlaceholder}

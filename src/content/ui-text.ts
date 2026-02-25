@@ -238,6 +238,13 @@ export const uiText = {
     schedule: {
       title: "Schedule",
       description: "Choose how often this prompt runs.",
+      timezone: {
+        cronNote: "Cron schedules run in UTC.",
+        defaultNote: "Times are stored in UTC.",
+        storedNote(utcTime: string) {
+          return `Stored as ${utcTime} UTC.`;
+        },
+      },
       types: {
         daily: "Daily",
         weekly: "Weekly",
@@ -251,6 +258,7 @@ export const uiText = {
     channel: {
       title: "Channel",
       description: "Pick where completed outputs should be delivered.",
+      prefilledFromLastJob: "Using your most recent job's channel settings as a default.",
       types: {
         discord: "Discord",
         telegram: "Telegram",

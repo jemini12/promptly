@@ -11,6 +11,8 @@ export type JobFormState = {
   webSearchMode: WebSearchMode;
   scheduleType: "daily" | "weekly" | "cron";
   time: string;
+  scheduleTimeZone: string;
+  timeIsUtc: boolean;
   dayOfWeek?: number;
   cron?: string;
   channel:
@@ -25,6 +27,7 @@ export type JobFormState = {
           payload: string;
         };
       };
+  channelPrefillSource?: "last_job" | null;
   enabled: boolean;
   preview: {
     loading: boolean;
@@ -49,9 +52,12 @@ export const defaultJobFormState: JobFormState = {
   webSearchMode: DEFAULT_WEB_SEARCH_MODE,
   scheduleType: "daily",
   time: "09:00",
+  scheduleTimeZone: "",
+  timeIsUtc: false,
   dayOfWeek: 1,
   cron: "",
   channel: { type: "discord", config: { webhookUrl: "" } },
+  channelPrefillSource: null,
   enabled: true,
   preview: { loading: false, status: "idle" },
 };

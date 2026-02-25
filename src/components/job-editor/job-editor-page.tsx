@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { LinkButton } from "@/components/ui/link-button";
 import { uiText } from "@/content/ui-text";
 import type { JobFormState } from "@/types/job-form";
+import { convertZonedHHmmToUtcHHmm, convertZonedWeeklyToUtc, getBrowserTimeZone } from "@/lib/timezone";
 
 function getSaveValidationMessage(state: JobFormState): string | null {
   if (!state.name.trim()) {
@@ -94,6 +95,19 @@ function JobActionsSection({ jobId }: { jobId?: string }) {
     setSaving(true);
     setError(null);
     setShowUpgrade(false);
+
+    const timeZone = state.scheduleTimeZone.trim() ? state.scheduleTimeZone : getBrowserTimeZone();
+
+    let scheduleTimeUtc = "00:00";
+    let scheduleDayOfWeekUtc = state.dayOfWeek;
+    if (state.scheduleType === "daily") {
+      scheduleTimeUtc = convertZonedHHmmToUtcHHmm(state.time, timeZone);
+    }
+    if (state.scheduleType === "weekly") {
+      const converted = convertZonedWeeklyToUtc(state.dayOfWeek ?? 1, state.time, timeZone);
+      scheduleTimeUtc = converted.utcHHmm;
+      scheduleDayOfWeekUtc = converted.utcDayOfWeek;
+    }
     const body = {
       name: state.name,
       template: state.prompt,
@@ -104,8 +118,8 @@ function JobActionsSection({ jobId }: { jobId?: string }) {
       llmModel: state.llmModel,
       webSearchMode: state.webSearchMode,
       scheduleType: state.scheduleType,
-      scheduleTime: state.scheduleType === "cron" ? "00:00" : state.time,
-      scheduleDayOfWeek: state.dayOfWeek,
+      scheduleTime: scheduleTimeUtc,
+      scheduleDayOfWeek: scheduleDayOfWeekUtc,
       scheduleCron: state.cron,
       channel: state.channel,
       enabled: state.enabled,

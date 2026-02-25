@@ -9,6 +9,7 @@ import { LocalTime } from "@/components/ui/local-time";
 import { JobCardActions } from "@/components/ui/job-card-actions";
 import { uiText } from "@/content/ui-text";
 import { PortalButton } from "@/components/billing/portal-button";
+import { JobEnabledToggle } from "@/components/ui/job-enabled-toggle";
 
 
 export const dynamic = "force-dynamic";
@@ -121,9 +122,13 @@ export default async function DashboardPage() {
                   <li key={job.id} className="relative rounded-xl border border-zinc-200 bg-white p-4 pr-10 sm:flex sm:items-center sm:justify-between sm:gap-4 sm:pr-4">
                     <div>
                       <h3 className="text-sm font-semibold text-zinc-900">{job.name}</h3>
-                      <p className="mt-0.5 text-xs text-zinc-500">
-                        {uiText.dashboard.status.nextRun} <LocalTime date={job.nextRunAt} /> · {job.enabled ? uiText.dashboard.status.enabled : uiText.dashboard.status.disabled}
-                      </p>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+                        <span>
+                          {uiText.dashboard.status.nextRun} <LocalTime date={job.nextRunAt} />
+                        </span>
+                        <span aria-hidden="true">·</span>
+                        <JobEnabledToggle jobId={job.id} enabled={job.enabled} />
+                      </div>
                       {latest ? (
                         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                           <span className={latestStatusClass}>{latest.status}</span>

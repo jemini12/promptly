@@ -81,6 +81,7 @@ export default async function EditJobPage({ params }: Params) {
             webSearchMode: normalizeWebSearchMode(job.webSearchMode),
             scheduleType: job.scheduleType,
             time: job.scheduleTime,
+            timeIsUtc: true,
             dayOfWeek: job.scheduleDayOfWeek ?? undefined,
             cron: job.scheduleCron ?? "",
             channel,

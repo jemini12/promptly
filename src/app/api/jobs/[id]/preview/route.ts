@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { format } from "date-fns";
-import { Prisma } from "@prisma/client";
+import { ChannelType, Prisma } from "@prisma/client";
 import { z } from "zod";
+
 import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/authz";
 import { errorResponse } from "@/lib/http";
@@ -15,6 +16,9 @@ import { compilePromptTemplate, coerceStringVars } from "@/lib/prompt-compile";
 import { buildPostPromptVariables, normalizePostPromptConfig } from "@/lib/post-prompt";
 
 export const maxDuration = 300;
+
+const OUTPUT_PREVIEW_MAX = 1000;
+const ERROR_MAX = 500;
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -34,89 +38,153 @@ export async function POST(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
+    if (body.testSend && job.channelType === ChannelType.in_app) {
+      return NextResponse.json({ error: "In-app delivery jobs cannot test-send." }, { status: 400 });
+    }
+
     const pv = job.publishedPromptVersion ?? (await getOrCreatePublishedPromptVersion(job.id));
     const vars = coerceStringVars(pv.variables);
     const prompt = compilePromptTemplate(pv.template, vars);
-
     const modelId = normalizeLlmModel(job.llmModel);
-    const result = await runPrompt(prompt, {
-      model: modelId,
-      useWebSearch: job.allowWebSearch,
-      webSearchMode: normalizeWebSearchMode(job.webSearchMode),
-    });
+    const now = new Date();
 
-    let output = result.output;
-    let postPromptApplied = false;
-    let postUsage: unknown = null;
-    let postToolCalls: unknown = null;
-    const postPromptConfig = normalizePostPromptConfig({
-      enabled: pv.postPromptEnabled ?? job.postPromptEnabled,
-      template: pv.postPrompt ?? job.postPrompt,
-    });
-    if (postPromptConfig.enabled) {
-      const postPrompt = compilePromptTemplate(
-        postPromptConfig.template,
-        buildPostPromptVariables({
-          baseVariables: vars,
-          output: result.output,
+    let runHistoryId: string | null = null;
+    try {
+      const created = await prisma.runHistory.create({
+        data: {
+          job: { connect: { id: job.id } },
+          promptVersion: { connect: { id: pv.id } },
+          status: "running",
+          outputText: null,
+          outputPreview: null,
+          errorMessage: null,
+          isPreview: true,
+          deliveredAt: null,
+          deliveryAttempts: 0,
+          deliveryLastError: null,
+        },
+        select: { id: true },
+      });
+      runHistoryId = created.id;
+    } catch {
+      runHistoryId = null;
+    }
+
+    try {
+      const result = await runPrompt(prompt, {
+        model: modelId,
+        useWebSearch: job.allowWebSearch,
+        webSearchMode: normalizeWebSearchMode(job.webSearchMode),
+      });
+
+      let output = result.output;
+      let postPromptApplied = false;
+      let postUsage: unknown = null;
+      let postToolCalls: unknown = null;
+      const postPromptConfig = normalizePostPromptConfig({
+        enabled: pv.postPromptEnabled ?? job.postPromptEnabled,
+        template: pv.postPrompt ?? job.postPrompt,
+      });
+      if (postPromptConfig.enabled) {
+        const postPrompt = compilePromptTemplate(
+          postPromptConfig.template,
+          buildPostPromptVariables({
+            baseVariables: vars,
+            output: result.output,
+            citations: result.citations,
+            usedWebSearch: result.usedWebSearch,
+            llmModel: result.llmModel ?? modelId,
+          }),
+        );
+        const post = await runPrompt(postPrompt, {
+          model: modelId,
+          useWebSearch: false,
+          webSearchMode: normalizeWebSearchMode(job.webSearchMode),
+        });
+        output = post.output;
+        postUsage = post.llmUsage ?? null;
+        postToolCalls = post.llmToolCalls ?? null;
+        postPromptApplied = true;
+      }
+
+      const llmUsageValue =
+        postPromptApplied
+          ? ({ primary: result.llmUsage ?? null, post: postUsage } as Prisma.InputJsonValue)
+          : result.llmUsage == null
+            ? Prisma.DbNull
+            : (result.llmUsage as Prisma.InputJsonValue);
+      const llmToolCallsValue =
+        postPromptApplied
+          ? ({ primary: result.llmToolCalls ?? null, post: postToolCalls } as Prisma.InputJsonValue)
+          : result.llmToolCalls == null
+            ? Prisma.DbNull
+            : (result.llmToolCalls as Prisma.InputJsonValue);
+      const citationsValue = (result.citations as unknown as Prisma.InputJsonValue) ?? Prisma.DbNull;
+
+      if (runHistoryId) {
+        await prisma.runHistory.update({
+          where: { id: runHistoryId },
+          data: {
+            status: "success",
+            outputText: output,
+            outputPreview: output.slice(0, OUTPUT_PREVIEW_MAX),
+            errorMessage: null,
+            llmModel: result.llmModel ?? null,
+            llmUsage: llmUsageValue,
+            llmToolCalls: llmToolCallsValue,
+            usedWebSearch: result.usedWebSearch,
+            citations: citationsValue,
+          },
+        });
+      }
+
+      const title = `[${job.name}] ${format(now, "yyyy-MM-dd HH:mm")}`;
+
+      if (body.testSend) {
+        await sendChannelMessage(toRunnableChannel(job), title, output, {
           citations: result.citations,
           usedWebSearch: result.usedWebSearch,
-          llmModel: result.llmModel ?? modelId,
-        }),
-      );
-      const post = await runPrompt(postPrompt, { model: modelId, useWebSearch: false, webSearchMode: normalizeWebSearchMode(job.webSearchMode) });
-      output = post.output;
-      postUsage = post.llmUsage ?? null;
-      postToolCalls = post.llmToolCalls ?? null;
-      postPromptApplied = true;
-    }
-    const title = `[${job.name}] ${format(new Date(), "yyyy-MM-dd HH:mm")}`;
+          meta: { kind: "job-preview", jobId: job.id, promptVersionId: pv.id },
+        });
 
-    if (body.testSend) {
-      await sendChannelMessage(toRunnableChannel(job), title, output, {
-        citations: result.citations,
-        usedWebSearch: result.usedWebSearch,
-        meta: { kind: "job-preview", jobId: job.id, promptVersionId: pv.id },
-      });
-    }
+        if (runHistoryId) {
+          await prisma.runHistory.update({
+            where: { id: runHistoryId },
+            data: { deliveredAt: new Date(), deliveryAttempts: 1, deliveryLastError: null },
+          });
+        }
+      } else if (job.channelType === ChannelType.in_app) {
+        if (runHistoryId) {
+          await prisma.runHistory.update({
+            where: { id: runHistoryId },
+            data: { deliveredAt: new Date(), deliveryAttempts: 0, deliveryLastError: null },
+          });
+        }
+      }
 
-    await prisma.runHistory.create({
-      data: {
-        job: { connect: { id: job.id } },
-        promptVersion: { connect: { id: pv.id } },
+      return NextResponse.json({
         status: "success",
-        outputText: output,
-        outputPreview: output.slice(0, 1000),
-        llmModel: result.llmModel ?? null,
-        llmUsage:
-          postPromptApplied
-            ? ({ primary: result.llmUsage ?? null, post: postUsage } as Prisma.InputJsonValue)
-            : result.llmUsage == null
-              ? Prisma.DbNull
-              : (result.llmUsage as Prisma.InputJsonValue),
-        llmToolCalls:
-          postPromptApplied
-            ? ({ primary: result.llmToolCalls ?? null, post: postToolCalls } as Prisma.InputJsonValue)
-            : result.llmToolCalls == null
-              ? Prisma.DbNull
-              : (result.llmToolCalls as Prisma.InputJsonValue),
+        output,
+        executedAt: new Date().toISOString(),
         usedWebSearch: result.usedWebSearch,
-        citations: (result.citations as unknown as Prisma.InputJsonValue) ?? Prisma.DbNull,
-        isPreview: true,
-      },
-    });
-    await prisma.previewEvent.create({ data: { userId } });
-
-    return NextResponse.json({
-      status: "success",
-      output,
-      executedAt: new Date().toISOString(),
-      usedWebSearch: result.usedWebSearch,
-      citations: result.citations,
-      llmModel: result.llmModel ?? null,
-      postPromptApplied,
-      postPromptWarning: postPromptConfig.warning,
-    });
+        citations: result.citations,
+        llmModel: result.llmModel ?? null,
+        postPromptApplied,
+        postPromptWarning: postPromptConfig.warning,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (runHistoryId) {
+        await prisma.runHistory.update({
+          where: { id: runHistoryId },
+          data: {
+            status: "fail",
+            errorMessage: message.slice(0, ERROR_MAX),
+          },
+        });
+      }
+      throw err;
+    }
   } catch (error) {
     return errorResponse(error);
   }

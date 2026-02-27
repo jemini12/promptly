@@ -17,15 +17,23 @@ export default async function NewJobPage() {
   if (!session?.user?.id) {
     redirect("/signin?callbackUrl=/jobs/new");
   }
-
-  const lastJob = await prisma.job.findFirst({
-    where: { userId: session.user.id },
-    orderBy: { createdAt: "desc" },
-    select: { channelType: true, channelConfig: true },
-  });
+  
+  const [jobCount, lastJob] = await Promise.all([
+    prisma.job.count({ where: { userId: session.user.id } }),
+    prisma.job.findFirst({
+      where: { userId: session.user.id },
+      orderBy: { createdAt: "desc" },
+      select: { channelType: true, channelConfig: true },
+    }),
+  ]);
+  const isFirstJob = jobCount === 0;
 
   const initialChannel =
-    lastJob?.channelType === "discord"
+    isFirstJob
+      ? ({ type: "in_app" } as const)
+      : lastJob?.channelType === "in_app"
+        ? ({ type: "in_app" } as const)
+        : lastJob?.channelType === "discord"
       ? {
           type: "discord" as const,
           config: { webhookUrl: decryptString((lastJob.channelConfig as { webhookUrlEnc: string }).webhookUrlEnc) },
@@ -59,7 +67,7 @@ export default async function NewJobPage() {
             initialChannel
               ? {
                   channel: initialChannel,
-                  channelPrefillSource: "last_job",
+                  channelPrefillSource: isFirstJob ? null : "last_job",
                 }
               : undefined
           }

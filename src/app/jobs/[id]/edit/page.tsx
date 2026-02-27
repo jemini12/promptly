@@ -39,7 +39,9 @@ export default async function EditJobPage({ params }: Params) {
   const postPromptEnabled = postPromptEnabledRaw && postPromptValue.trim().length > 0;
 
   const channel =
-    job.channelType === "discord"
+    job.channelType === "in_app"
+      ? ({ type: "in_app" } as const)
+      : job.channelType === "discord"
       ? {
           type: "discord" as const,
           config: {
@@ -56,13 +58,13 @@ export default async function EditJobPage({ params }: Params) {
               payload: string;
             },
           }
-      : {
-          type: "telegram" as const,
-          config: {
-            botToken: decryptString((job.channelConfig as { botTokenEnc: string }).botTokenEnc),
-            chatId: decryptString((job.channelConfig as { chatIdEnc: string }).chatIdEnc),
-          },
-        };
+        : {
+            type: "telegram" as const,
+            config: {
+              botToken: decryptString((job.channelConfig as { botTokenEnc: string }).botTokenEnc),
+              chatId: decryptString((job.channelConfig as { chatIdEnc: string }).chatIdEnc),
+            },
+          };
 
   return (
     <main className="page-shell">

@@ -1,4 +1,5 @@
 import { format } from "date-fns";
+import { ChannelType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { runPrompt } from "@/lib/llm";
 import { sendChannelMessage, ChannelRequestError } from "@/lib/channel";
@@ -304,31 +305,42 @@ export async function runDueJobs(opts: { timeBudgetMs: number; maxJobs: number; 
         WHERE "id" = ${runHistoryId}::uuid
       `;
 
-      const delivery = await deliverWithRetryAndReceipts(runHistoryId, toRunnableChannel(job), title, output, {
-        citations: llm.citations,
-        usedWebSearch: llm.usedWebSearch,
-        meta: {
-          jobId: job.id,
-          promptVersionId: pv.id,
-          scheduledFor: scheduledFor.toISOString(),
-          llmModel: llm.llmModel ?? null,
-          llmUsage: llm.llmUsage ?? null,
-          postPromptApplied,
-          postPromptWarning: postPromptConfig.warning,
-        },
-      });
-      if (delivery.lastError) {
-        throw new Error(delivery.lastError);
-      }
+      if (job.channelType === ChannelType.in_app) {
+        await prisma.runHistory.update({
+          where: { id: runHistoryId },
+          data: {
+            deliveredAt: new Date(),
+            deliveryAttempts: 0,
+            deliveryLastError: null,
+          },
+        });
+      } else {
+        const delivery = await deliverWithRetryAndReceipts(runHistoryId, toRunnableChannel(job), title, output, {
+          citations: llm.citations,
+          usedWebSearch: llm.usedWebSearch,
+          meta: {
+            jobId: job.id,
+            promptVersionId: pv.id,
+            scheduledFor: scheduledFor.toISOString(),
+            llmModel: llm.llmModel ?? null,
+            llmUsage: llm.llmUsage ?? null,
+            postPromptApplied,
+            postPromptWarning: postPromptConfig.warning,
+          },
+        });
+        if (delivery.lastError) {
+          throw new Error(delivery.lastError);
+        }
 
-      await prisma.runHistory.update({
-        where: { id: runHistoryId },
-        data: {
-          deliveredAt: new Date(),
-          deliveryAttempts: delivery.attempts,
-          deliveryLastError: null,
-        },
-      });
+        await prisma.runHistory.update({
+          where: { id: runHistoryId },
+          data: {
+            deliveredAt: new Date(),
+            deliveryAttempts: delivery.attempts,
+            deliveryLastError: null,
+          },
+        });
+      }
     } catch (err) {
       error = err;
     }

@@ -4,6 +4,7 @@ import { decryptString, encryptString, maskSecret } from "@/lib/crypto";
 type IncomingChannel =
   | { type: "discord"; config: { webhookUrl: string } }
   | { type: "telegram"; config: { botToken: string; chatId: string } }
+  | { type: "in_app" }
   | {
       type: "webhook";
       config: {
@@ -17,6 +18,7 @@ type IncomingChannel =
 type ChannelConfigDb =
   | { webhookUrlEnc: string }
   | { botTokenEnc: string; chatIdEnc: string }
+  | { kind: "in_app" }
   | { configEnc: string };
 
 export function toDbChannelConfig(channel: IncomingChannel): { channelType: ChannelType; channelConfig: ChannelConfigDb } {
@@ -34,6 +36,13 @@ export function toDbChannelConfig(channel: IncomingChannel): { channelType: Chan
     };
   }
 
+  if (channel.type === "in_app") {
+    return {
+      channelType: ChannelType.in_app,
+      channelConfig: { kind: "in_app" },
+    };
+  }
+
   return {
     channelType: ChannelType.telegram,
     channelConfig: {
@@ -45,6 +54,13 @@ export function toDbChannelConfig(channel: IncomingChannel): { channelType: Chan
 
 export function toMaskedApiJob(job: Job) {
   const { allowWebSearch, ...jobRest } = job;
+  if (job.channelType === ChannelType.in_app) {
+    return {
+      ...jobRest,
+      useWebSearch: allowWebSearch,
+      channel: { type: "in_app" as const },
+    };
+  }
   if (job.channelType === ChannelType.discord) {
     const raw = job.channelConfig as { webhookUrlEnc: string };
     const webhook = decryptString(raw.webhookUrlEnc);
@@ -96,6 +112,9 @@ export function toMaskedApiJob(job: Job) {
 }
 
 export function toRunnableChannel(job: Job) {
+  if (job.channelType === ChannelType.in_app) {
+    throw new Error("In-app delivery jobs do not have a runnable external channel");
+  }
   if (job.channelType === ChannelType.discord) {
     const raw = job.channelConfig as { webhookUrlEnc: string };
     return {

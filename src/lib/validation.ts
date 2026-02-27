@@ -34,6 +34,10 @@ const webhookConfigSchema = z.object({
   }
 });
 
+const inAppChannelSchema = z.object({
+  type: z.literal("in_app"),
+});
+
 export const previewSchema = z.object({
   template: z.string().min(1).max(8000),
   postPrompt: z.string().max(8000).optional().default(""),
@@ -100,6 +104,7 @@ export const jobUpsertSchema = z
     channel: z.discriminatedUnion("type", [
       z.object({ type: z.literal("discord"), config: discordConfigSchema }),
       z.object({ type: z.literal("telegram"), config: telegramConfigSchema }),
+      inAppChannelSchema,
       z.object({ type: z.literal("webhook"), config: webhookConfigSchema }),
     ]),
     enabled: z.boolean().default(true),

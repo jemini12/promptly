@@ -74,7 +74,7 @@ export const uiText = {
         "Sign in and create a job (or use Create with Chat from the Dashboard).",
         "Write a prompt template and optionally add Variables (JSON).",
         "Run Preview and (optionally) enable test-send to validate delivery.",
-        "Pick a schedule (daily/weekly/cron), choose a channel, then Save Job.",
+        "Pick a schedule (daily/weekly/cron), choose a delivery target (in-app is simplest), then Save Job.",
         "Monitor Run History for status, errors, and Sources when web search is enabled.",
       ],
     },
@@ -103,6 +103,7 @@ export const uiText = {
     channelSetup: {
       title: "Channel setup",
       items: [
+        "In-app: no setup. Runs are stored in Run History.",
         "Discord: provide a webhook URL.",
         "Telegram: provide a bot token and chat ID.",
         "Custom webhook: provide a URL and method. Headers JSON is optional. Payload JSON is optional.",
@@ -260,6 +261,7 @@ export const uiText = {
       description: "Pick where completed outputs should be delivered.",
       prefilledFromLastJob: "Using your most recent job's channel settings as a default.",
       types: {
+        in_app: "In-app (Run History)",
         discord: "Discord",
         telegram: "Telegram",
         webhook: "Custom Webhook",

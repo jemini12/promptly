@@ -18,6 +18,7 @@ export type JobFormState = {
   channel:
     | { type: "discord"; config: { webhookUrl: string } }
     | { type: "telegram"; config: { botToken: string; chatId: string } }
+    | { type: "in_app" }
     | {
         type: "webhook";
         config: {

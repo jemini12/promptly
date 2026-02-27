@@ -452,6 +452,10 @@ export function JobChannelSection() {
         aria-label="Delivery channel"
         value={state.channel.type}
         onChange={(event) => {
+          if (event.target.value === "in_app") {
+            setChannel({ type: "in_app" });
+            return;
+          }
           if (event.target.value === "discord") {
             setChannel({ type: "discord", config: { webhookUrl: "" } });
             return;
@@ -464,10 +468,18 @@ export function JobChannelSection() {
         }}
         className="input-base mt-2 h-10"
       >
+        <option value="in_app">{uiText.jobEditor.channel.types.in_app}</option>
         <option value="discord">{uiText.jobEditor.channel.types.discord}</option>
         <option value="telegram">{uiText.jobEditor.channel.types.telegram}</option>
         <option value="webhook">{uiText.jobEditor.channel.types.webhook}</option>
       </select>
+      
+      {state.channel.type === "in_app" ? (
+        <div className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700">
+          <p className="font-medium text-zinc-900">In-app delivery</p>
+          <p className="mt-1 text-zinc-600">Runs are stored in Run History. You can connect Discord / Telegram / webhook later.</p>
+        </div>
+      ) : null}
 
       {state.channel.type === "discord" ? (
         <input
@@ -506,7 +518,7 @@ export function JobChannelSection() {
             placeholder={uiText.jobEditor.channel.telegramChatPlaceholder}
           />
         </div>
-      ) : (
+      ) : state.channel.type === "webhook" ? (
         <div className="mt-3 grid gap-2">
           <input
             aria-label="Webhook URL"
@@ -574,7 +586,7 @@ export function JobChannelSection() {
             placeholder={uiText.jobEditor.channel.payloadPlaceholder}
           />
         </div>
-      )}
+      ) : null}
     </section>
   );
 }
@@ -591,6 +603,16 @@ export function JobPreviewSection() {
       previewAbortRef.current?.abort();
     };
   }, []);
+
+  useEffect(() => {
+    if (state.channel.type !== "in_app") {
+      return;
+    }
+    if (!testSend) {
+      return;
+    }
+    setTestSend(false);
+  }, [state.channel.type, testSend]);
 
   const previewDisabled = state.preview.loading || !state.prompt.trim();
 
@@ -717,9 +739,15 @@ export function JobPreviewSection() {
       </div>
       <div className="mt-3 grid gap-2 text-xs text-zinc-700">
         <label className="flex items-center gap-2">
-          <input type="checkbox" checked={testSend} onChange={(event) => setTestSend(event.target.checked)} />
+          <input
+            type="checkbox"
+            checked={testSend}
+            disabled={state.channel.type === "in_app"}
+            onChange={(event) => setTestSend(event.target.checked)}
+          />
           <span>{uiText.jobEditor.preview.testSend}</span>
         </label>
+        {state.channel.type === "in_app" ? <p className="text-[11px] text-zinc-500">Test-send is only available for external channels.</p> : null}
       </div>
       <pre
         className="mt-3 min-h-16 max-h-60 overflow-auto whitespace-pre-wrap rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700 sm:min-h-24 sm:max-h-80"

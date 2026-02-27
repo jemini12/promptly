@@ -44,6 +44,10 @@ function getSaveValidationMessage(state: JobFormState): string | null {
     return "Cron expression is required.";
   }
 
+  if (state.channel.type === "in_app") {
+    return null;
+  }
+
   if (state.channel.type === "discord") {
     if (!state.channel.config.webhookUrl.trim()) {
       return "Discord webhook URL is required.";
@@ -144,7 +148,23 @@ function JobActionsSection({ jobId }: { jobId?: string }) {
         return;
       }
 
-      router.push("/dashboard");
+      let createdId: string | null = null;
+      if (!jobId) {
+        try {
+          const data = (await response.json()) as unknown;
+          const maybeJob = data && typeof data === "object" && data !== null && "job" in data ? (data as { job?: unknown }).job : null;
+          const maybeId = maybeJob && typeof maybeJob === "object" && maybeJob !== null && "id" in maybeJob ? (maybeJob as { id?: unknown }).id : null;
+          createdId = typeof maybeId === "string" && maybeId.trim() ? maybeId : null;
+        } catch {
+          createdId = null;
+        }
+      }
+
+      if (!jobId && createdId && state.channel.type === "in_app") {
+        router.push(`/jobs/${createdId}/history?welcome=1`);
+      } else {
+        router.push("/dashboard");
+      }
       router.refresh();
     } catch {
       setError(uiText.jobEditor.actions.saveNetworkError);

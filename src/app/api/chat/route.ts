@@ -99,7 +99,9 @@ const webhookChannelSchema = z
     return { type: "webhook" as const, config };
   });
 
-const channelSchema = z.union([discordChannelSchema, telegramChannelSchema, webhookChannelSchema]);
+const inAppChannelSchema = z.object({ type: z.literal("in_app") });
+
+const channelSchema = z.union([inAppChannelSchema, discordChannelSchema, telegramChannelSchema, webhookChannelSchema]);
 
 const createJobInputSchema = z
   .object({
@@ -661,6 +663,9 @@ export async function POST(req: Request) {
           const title = `[${job.name}] ${format(new Date(), "yyyy-MM-dd HH:mm")}`;
 
           if (testSend) {
+            if (job.channelType === "in_app") {
+              throw new Error("In-app delivery jobs cannot test-send.");
+            }
             await sendChannelMessage(toRunnableChannel(job), title, output, {
               citations: result.citations,
               usedWebSearch: result.usedWebSearch,
@@ -675,6 +680,9 @@ export async function POST(req: Request) {
               status: "success",
               outputText: output,
               outputPreview: output.slice(0, 1000),
+              deliveredAt: job.channelType === "in_app" ? new Date() : null,
+              deliveryAttempts: 0,
+              deliveryLastError: null,
               llmModel: result.llmModel ?? null,
               llmUsage:
                 postPromptApplied
@@ -693,7 +701,6 @@ export async function POST(req: Request) {
               isPreview: true,
             },
           });
-          await prisma.previewEvent.create({ data: { userId } });
 
           return {
             status: "success",
@@ -751,33 +758,33 @@ export async function POST(req: Request) {
 
           if (input.testSend && input.channel) {
             if (input.channel.type === "discord") {
-                await sendChannelMessage(
-                  { type: "discord", webhookUrl: input.channel.config.webhookUrl },
-                  title,
-                  output,
-                  { citations: result.citations, usedWebSearch: result.usedWebSearch, meta: { kind: "preview" } },
-                );
-              } else if (input.channel.type === "telegram") {
-                await sendChannelMessage(
-                  { type: "telegram", botToken: input.channel.config.botToken, chatId: input.channel.config.chatId },
-                  title,
-                  output,
-                  { citations: result.citations, usedWebSearch: result.usedWebSearch, meta: { kind: "preview" } },
-                );
-              } else {
-                await sendChannelMessage(
-                  {
-                    type: "webhook",
-                    url: input.channel.config.url,
-                    method: input.channel.config.method,
-                    headers: input.channel.config.headers,
-                    payload: input.channel.config.payload,
-                  },
-                  title,
-                  output,
-                  { citations: result.citations, usedWebSearch: result.usedWebSearch, meta: { kind: "preview" } },
-                );
-              }
+              await sendChannelMessage(
+                { type: "discord", webhookUrl: input.channel.config.webhookUrl },
+                title,
+                output,
+                { citations: result.citations, usedWebSearch: result.usedWebSearch, meta: { kind: "preview" } },
+              );
+            } else if (input.channel.type === "telegram") {
+              await sendChannelMessage(
+                { type: "telegram", botToken: input.channel.config.botToken, chatId: input.channel.config.chatId },
+                title,
+                output,
+                { citations: result.citations, usedWebSearch: result.usedWebSearch, meta: { kind: "preview" } },
+              );
+            } else if (input.channel.type === "webhook") {
+              await sendChannelMessage(
+                {
+                  type: "webhook",
+                  url: input.channel.config.url,
+                  method: input.channel.config.method,
+                  headers: input.channel.config.headers,
+                  payload: input.channel.config.payload,
+                },
+                title,
+                output,
+                { citations: result.citations, usedWebSearch: result.usedWebSearch, meta: { kind: "preview" } },
+              );
+            }
           }
 
           await prisma.previewEvent.create({ data: { userId } });

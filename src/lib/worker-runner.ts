@@ -1,4 +1,3 @@
-import { format } from "date-fns";
 import { ChannelType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { runPrompt } from "@/lib/llm";
@@ -10,6 +9,7 @@ import { getOrCreatePublishedPromptVersion } from "@/lib/prompt-version";
 import { normalizeLlmModel, normalizeWebSearchMode, type WebSearchMode } from "@/lib/llm-defaults";
 import { compilePromptTemplate, coerceStringVars } from "@/lib/prompt-compile";
 import { buildPostPromptVariables, normalizePostPromptConfig } from "@/lib/post-prompt";
+import { formatRunTitle } from "@/lib/run-title";
 
 const DEFAULT_LOCK_STALE_MINUTES = 10;
 const MAX_FAILS_BEFORE_DISABLE = 10;
@@ -185,7 +185,7 @@ export async function runDueJobs(opts: { timeBudgetMs: number; maxJobs: number; 
     const vars = coerceStringVars(pv.variables);
     const prompt = compilePromptTemplate(pv.template, vars, { nowIso: scheduledFor.toISOString(), timezone: "UTC" });
 
-    const title = `[${job.name}] ${format(new Date(), "yyyy-MM-dd HH:mm")}`;
+    const title = formatRunTitle(job.name, new Date(), "UTC");
 
     let runHistoryId: string | null = null;
     try {

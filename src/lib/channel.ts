@@ -32,19 +32,95 @@ const TELEGRAM_MAX = 4000;
 
 const DISCORD_WEBHOOK_URL_RE = /^https:\/\/(?:discord\.com|discordapp\.com)\/api\/webhooks\/(\d+)\/[A-Za-z0-9_-]+/;
 
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+function envInt(name: string, fallback: number, min: number, max: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return fallback;
+  const v = Math.floor(n);
+  if (v < min) return min;
+  if (v > max) return max;
+  return v;
+}
+
+function parseRetryAfterMs(value: string | null): number | null {
+  if (!value) return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return null;
+  if (n < 10) return Math.round(n * 1000);
+  return Math.round(n);
+}
+
+async function retryAfterMsFromResponse(res: Response): Promise<number | null> {
+  const header = parseRetryAfterMs(res.headers.get("retry-after"));
+  if (header != null) return header;
+  try {
+    const data = (await res.json()) as unknown;
+    const retry = data && typeof data === "object" ? (data as { retry_after?: unknown }).retry_after : undefined;
+    if (typeof retry === "number" && Number.isFinite(retry) && retry >= 0) {
+      return Math.round(retry * 1000);
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function buildDiscordChunks(text: string): string[] {
+  const chunks = chunkDiscordContent(text, DISCORD_MAX);
+  const maxParts = envInt("CHANNEL_DISCORD_MAX_PARTS", 10, 1, 50);
+  if (chunks.length <= maxParts) return chunks;
+
+  const note = `\n\n[Truncated: sent first ${maxParts} of ${chunks.length} parts. Full output is available in Run History.]`;
+  const maxTotal = maxParts * DISCORD_MAX;
+  const baseBudget = Math.max(0, maxTotal - note.length);
+  const base = text.slice(0, baseBudget);
+  const openFence = updateCodeFenceState(null, base);
+  const closeFence = openFence != null ? "\n```" : "";
+  const truncatedText = `${base}${closeFence}${note}`;
+  return chunkDiscordContent(truncatedText, DISCORD_MAX).slice(0, maxParts);
+}
+
+async function postJsonWithRetry(url: string, headers: Record<string, string>, payload: unknown): Promise<void> {
+  const maxRetries = envInt("CHANNEL_DISCORD_429_MAX_RETRIES", 3, 0, 10);
+  let attempt = 0;
+  while (true) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...headers },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) return;
+
+    if (res.status === 429 && attempt < maxRetries) {
+      attempt++;
+      const retryMs = (await retryAfterMsFromResponse(res)) ?? 1000;
+      await sleep(Math.min(Math.max(retryMs, 250), 10_000));
+      continue;
+    }
+
+    throw new ChannelRequestError(`Webhook failed: ${res.status}`, res.status);
+  }
+}
+
 function findSplitIndex(text: string, max: number): number {
   if (text.length <= max) {
     return text.length;
   }
 
   const within = text.slice(0, max);
+  const min = Math.max(1, Math.floor(max * 0.5));
   const newline = within.lastIndexOf("\n");
-  if (newline > 0) {
+  if (newline >= min) {
     return newline;
   }
 
   const space = within.lastIndexOf(" ");
-  if (space > 0) {
+  if (space >= min) {
     return space;
   }
 
@@ -158,14 +234,14 @@ export async function sendChannelMessage(channel: SendChannelInput, title: strin
   const text = `${title}\n\n${body}${sources}`;
 
   if (channel.type === "discord") {
-    for (const chunk of chunkDiscordContent(text, DISCORD_MAX)) {
-      const res = await fetch(channel.webhookUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: chunk }),
-      });
-      if (!res.ok) {
-        throw new ChannelRequestError(`Discord webhook failed: ${res.status}`, res.status);
+    for (const chunk of buildDiscordChunks(text)) {
+      try {
+        await postJsonWithRetry(channel.webhookUrl, {}, { content: chunk });
+      } catch (err) {
+        if (err instanceof ChannelRequestError) {
+          throw new ChannelRequestError(`Discord webhook failed: ${err.status}`, err.status);
+        }
+        throw err;
       }
     }
     return;
@@ -181,18 +257,9 @@ export async function sendChannelMessage(channel: SendChannelInput, title: strin
       const obj = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : null;
       const content = obj && typeof obj.content === "string" ? obj.content : null;
       if (content) {
-        for (const chunk of chunkDiscordContent(content, DISCORD_MAX)) {
-          const res = await fetch(channel.url, {
-            method: channel.method,
-            headers: {
-              "Content-Type": "application/json",
-              ...(headers as Record<string, string>),
-            },
-            body: JSON.stringify({ ...obj, content: chunk }),
-          });
-          if (!res.ok) {
-            throw new ChannelRequestError(`Webhook failed: ${res.status}`, res.status);
-          }
+        const extraHeaders = headers as Record<string, string>;
+        for (const chunk of buildDiscordChunks(content)) {
+          await postJsonWithRetry(channel.url, extraHeaders, { ...obj, content: chunk });
         }
         return;
       }

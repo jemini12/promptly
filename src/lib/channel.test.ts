@@ -83,4 +83,65 @@ describe("sendChannelMessage", () => {
       expect((payload?.content as string).length).toBeLessThanOrEqual(1900);
     }
   });
+
+  it("caps Discord parts to avoid runaway sends", async () => {
+    const prev = process.env.CHANNEL_DISCORD_MAX_PARTS;
+    process.env.CHANNEL_DISCORD_MAX_PARTS = "3";
+    try {
+      const fetchMock = mockOkFetch();
+      vi.stubGlobal("fetch", fetchMock);
+
+      const title = "[t]";
+      const body = "c".repeat(1900 * 6);
+      await sendChannelMessage({ type: "discord", webhookUrl: "https://discord.com/api/webhooks/1/x" }, title, body);
+
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      const contents = fetchMock.mock.calls
+        .map((call) => {
+          const req = call[1] as RequestInit | undefined;
+          const payload = typeof req?.body === "string" ? (JSON.parse(req.body) as { content?: unknown }) : null;
+          return typeof payload?.content === "string" ? (payload.content as string) : null;
+        })
+        .filter((v): v is string => v != null);
+      expect(contents.length).toBe(3);
+      expect(contents.some((c) => c.includes("[Truncated:"))).toBe(true);
+    } finally {
+      if (prev == null) delete process.env.CHANNEL_DISCORD_MAX_PARTS;
+      else process.env.CHANNEL_DISCORD_MAX_PARTS = prev;
+    }
+  });
+
+  it("retries 429 responses with Retry-After", async () => {
+    const prev = process.env.CHANNEL_DISCORD_429_MAX_RETRIES;
+    process.env.CHANNEL_DISCORD_429_MAX_RETRIES = "1";
+    vi.useFakeTimers();
+
+    try {
+      let calls = 0;
+      const fetchMock = vi.fn(async () => {
+        const n = calls;
+        calls++;
+        if (n === 0) {
+          return {
+            ok: false,
+            status: 429,
+            headers: { get: (k: string) => (k.toLowerCase() === "retry-after" ? "0" : null) },
+            json: async () => ({ retry_after: 0 }),
+          } as unknown as Response;
+        }
+        return ({ ok: true, status: 204, headers: { get: () => null } }) as unknown as Response;
+      });
+      vi.stubGlobal("fetch", fetchMock);
+
+      const p = sendChannelMessage({ type: "discord", webhookUrl: "https://discord.com/api/webhooks/1/x" }, "t", "hello");
+      await vi.runAllTimersAsync();
+      await p;
+
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+      if (prev == null) delete process.env.CHANNEL_DISCORD_429_MAX_RETRIES;
+      else process.env.CHANNEL_DISCORD_429_MAX_RETRIES = prev;
+    }
+  });
 });

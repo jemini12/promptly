@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { format } from "date-fns";
+import { formatRunTitle } from "@/lib/run-title";
 import { ChannelType, Prisma } from "@prisma/client";
 import { z } from "zod";
 
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest, { params }: Params) {
         });
       }
 
-      const title = `[${job.name}] ${format(now, "yyyy-MM-dd HH:mm")}`;
+      const title = formatRunTitle(job.name, now);
 
       if (body.testSend) {
         await sendChannelMessage(toRunnableChannel(job), title, output, {

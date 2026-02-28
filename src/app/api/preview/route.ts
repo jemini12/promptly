@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { format } from "date-fns";
+import { formatRunTitle } from "@/lib/run-title";
 import { requireUserId } from "@/lib/authz";
 import { errorResponse } from "@/lib/http";
 import { previewSchema } from "@/lib/validation";
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
       output = post.output;
       postPromptApplied = true;
     }
-    const title = `[${payload.name}] ${format(now, "yyyy-MM-dd HH:mm")}`;
+    const title = formatRunTitle(payload.name, now, payload.timezone);
 
     if (payload.testSend && payload.channel) {
       if (payload.channel.type === "discord") {

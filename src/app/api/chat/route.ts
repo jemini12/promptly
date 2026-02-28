@@ -1,5 +1,5 @@
 import { streamText, convertToModelMessages, tool, stepCountIs, type UIMessage, createUIMessageStreamResponse, consumeStream } from "ai";
-import { format } from "date-fns";
+import { formatRunTitle } from "@/lib/run-title";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { openai } from "@ai-sdk/openai";
@@ -660,7 +660,7 @@ export async function POST(req: Request) {
             postToolCalls = post.llmToolCalls ?? null;
             postPromptApplied = true;
           }
-          const title = `[${job.name}] ${format(new Date(), "yyyy-MM-dd HH:mm")}`;
+          const title = formatRunTitle(job.name, new Date(), "UTC");
 
           if (testSend) {
             if (job.channelType === "in_app") {
@@ -754,7 +754,7 @@ export async function POST(req: Request) {
             output = post.output;
             postPromptApplied = true;
           }
-          const title = `[${input.name}] ${format(now, "yyyy-MM-dd HH:mm")}`;
+          const title = formatRunTitle(input.name, now, input.timezone);
 
           if (input.testSend && input.channel) {
             if (input.channel.type === "discord") {
